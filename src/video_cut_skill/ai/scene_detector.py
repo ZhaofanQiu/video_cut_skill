@@ -181,17 +181,24 @@ class SceneDetector:
         scene_tuples = [(s.start, s.end) for s in scenes]
         
         try:
+            # Use output_file_template instead of filename_template
+            # $VIDEO_NAME-Scene-$SCENE_NUMBER.mp4
+            output_file_template = filename_template.replace("{}", "$SCENE_NUMBER")
+            if "$VIDEO_NAME" not in output_file_template:
+                output_file_template = f"scene-$SCENE_NUMBER.mp4"
+            
             split_video_ffmpeg(
                 video_path,
                 scene_tuples,
-                output_dir=str(output_dir),
-                filename_template=filename_template,
+                output_dir=output_dir,
+                output_file_template=output_file_template,
                 show_progress=show_progress,
             )
             
             # 收集输出文件
+            video_name = Path(video_path).stem
             output_files = [
-                output_dir / filename_template.format(i + 1)
+                output_dir / output_file_template.replace("$VIDEO_NAME", video_name).replace("$SCENE_NUMBER", str(i + 1))
                 for i in range(len(scenes))
             ]
             

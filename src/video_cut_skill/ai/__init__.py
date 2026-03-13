@@ -1,13 +1,11 @@
-"""AI module for content analysis and editing strategy."""
+"""AI Module - AI 决策引擎 (Phase 2)."""
 
-from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult, TranscriptSegment
-from video_cut_skill.ai.scene_detector import SceneDetector, SceneDetectionResult, Scene
+from video_cut_skill.ai.analyzer import ContentAnalyzer, ContentAnalysis
+from video_cut_skill.ai.strategy import EditingStrategy, StrategyGenerator
 
 __all__ = [
-    "Transcriber",
-    "TranscriptResult",
-    "TranscriptSegment",
-    "SceneDetector",
-    "SceneDetectionResult",
-    "Scene",
+    "ContentAnalyzer",
+    "ContentAnalysis",
+    "EditingStrategy",
+    "StrategyGenerator",
 ]
