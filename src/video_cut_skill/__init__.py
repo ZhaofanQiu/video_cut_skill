@@ -36,11 +36,21 @@ from video_cut_skill.motion_graphics import (
 
 # Utils
 from video_cut_skill.utils import (
+    API_RETRY,
+    DOWNLOAD_RETRY,
+    NETWORK_RETRY,
     CachedSceneDetector,
     CachedTranscriber,
     CacheManager,
     HardwareInfo,
+    JSONFormatter,
+    ProgressLogger,
+    RetryableOperation,
+    RetryError,
+    get_logger,
     get_optimal_device,
+    retry_with_backoff,
+    setup_structured_logging,
 )
 
 __version__ = "0.3.0"
@@ -79,10 +89,23 @@ __all__ = [
     # Audio
     "AudioEnhancer",
     "AudioAnalyzer",
-    # Utils
+    # Utils - Hardware
+    "HardwareInfo",
+    "get_optimal_device",
+    # Utils - Cache
     "CacheManager",
     "CachedTranscriber",
     "CachedSceneDetector",
-    "HardwareInfo",
-    "get_optimal_device",
+    # Utils - Logging
+    "JSONFormatter",
+    "ProgressLogger",
+    "get_logger",
+    "setup_structured_logging",
+    # Utils - Retry
+    "retry_with_backoff",
+    "RetryableOperation",
+    "RetryError",
+    "NETWORK_RETRY",
+    "DOWNLOAD_RETRY",
+    "API_RETRY",
 ]
