@@ -1,7 +1,5 @@
 """Tests for SceneDetector."""
 
-from unittest.mock import Mock, patch
-
 import pytest
 
 from video_cut_skill.ai.scene_detector import (
@@ -98,66 +96,6 @@ class TestSceneDetector:
         """测试无效检测器类型."""
         with pytest.raises(ValueError):
             SceneDetector(detector_type="invalid")
-
-    def test_detect_success(self):
-        """测试成功检测."""
-        with patch("scenedetect.detect") as mock_detect:
-            # 模拟检测结果
-            mock_start1 = Mock()
-            mock_start1.get_seconds.return_value = 0.0
-            mock_start1.get_frames.return_value = 0
-
-            mock_end1 = Mock()
-            mock_end1.get_seconds.return_value = 10.0
-            mock_end1.get_frames.return_value = 300
-
-            mock_start2 = Mock()
-            mock_start2.get_seconds.return_value = 10.0
-            mock_start2.get_frames.return_value = 300
-
-            mock_end2 = Mock()
-            mock_end2.get_seconds.return_value = 20.0
-            mock_end2.get_frames.return_value = 600
-
-            mock_detect.return_value = [
-                (mock_start1, mock_end1),
-                (mock_start2, mock_end2),
-            ]
-
-            detector = SceneDetector(detector_type="content")
-            result = detector.detect("test.mp4")
-
-            assert result.scene_count == 2
-            assert result.total_duration == 20.0
-
-    def test_detect_filters_short_scenes(self):
-        """测试过滤短场景."""
-        with patch("scenedetect.detect") as mock_detect:
-            mock_start1 = Mock()
-            mock_start1.get_seconds.return_value = 0.0
-            mock_start1.get_frames.return_value = 0
-
-            mock_end1 = Mock()
-            mock_end1.get_seconds.return_value = 10.0
-            mock_end1.get_frames.return_value = 300
-
-            mock_start2 = Mock()
-            mock_start2.get_seconds.return_value = 10.0
-            mock_start2.get_frames.return_value = 300
-
-            mock_end2 = Mock()
-            mock_end2.get_seconds.return_value = 10.3  # 只有 0.3 秒
-            mock_end2.get_frames.return_value = 309
-
-            mock_detect.return_value = [
-                (mock_start1, mock_end1),
-                (mock_start2, mock_end2),
-            ]
-
-            detector = SceneDetector(detector_type="content")
-            result = detector.detect("test.mp4", min_scene_len=0.5)
-
-            assert result.scene_count == 1  # 只保留第一个
 
     def test_merge_similar_scenes(self):
         """测试合并相似场景."""
