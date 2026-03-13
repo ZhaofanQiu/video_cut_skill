@@ -93,7 +93,7 @@ Issues = "https://github.com/ZhaofanQiu/video_cut_skill/issues"
 packages = ["src/video_cut_skill"]
 
 [tool.black]
-line-length = 100
+line-length = 150
 target-version = ["py39", "py310", "py311", "py312"]
 include = '\.pyi?$'
 extend-exclude = '''
@@ -111,8 +111,10 @@ extend-exclude = '''
 '''
 
 [tool.ruff]
-line-length = 100
+line-length = 150
 target-version = "py39"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -128,9 +130,15 @@ select = [
 ignore = [
     "D100",  # Missing docstring in public module
     "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "UP006", # Use list instead of List for type annotation
+    "UP035", # typing.List is deprecated
+    "SIM103", # Return the negated condition directly
+    "SIM108", # Use ternary operator
+    "E501",  # Line too long
 ]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]

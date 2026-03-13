@@ -136,7 +136,7 @@ ffprobe -show_streams test9_output_subtitled.mp4
 
 ## Next Steps
 
-See [FUTURE.md](FUTURE.md) for upcoming features and improvements.
+See [FUTURE.md](/FUTURE.md) for upcoming features and improvements.
 
 ## Conclusion
 

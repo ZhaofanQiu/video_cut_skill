@@ -109,8 +109,6 @@ See [Quick Start](quickstart.md) for more examples.
 
 ### API Reference
 - [Core API](api/index.md) - FFmpeg wrapper and models
-- [AI Module](api/ai.md) - Transcriber, Analyzer, Strategy
-- [Motion Graphics](api/motion-graphics.md) - Text, shapes, animations
 
 ## Model Management
 

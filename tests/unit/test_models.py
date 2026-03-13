@@ -1,12 +1,13 @@
 """Tests for core models."""
 
 import pytest
-from video_cut_skill.core.models import Clip, Track, Timeline, Project
+
+from video_cut_skill.core.models import Clip, Project, Timeline, Track
 
 
 class TestClip:
     """Clip 模型测试."""
-    
+
     def test_clip_creation(self):
         """测试创建 Clip."""
         clip = Clip(
@@ -18,7 +19,7 @@ class TestClip:
         assert clip.start_time == 0.0
         assert clip.end_time == 10.0
         assert clip.duration == 10.0
-    
+
     def test_clip_invalid_time(self):
         """测试无效时间."""
         with pytest.raises(ValueError):
@@ -27,7 +28,7 @@ class TestClip:
                 start_time=10.0,
                 end_time=5.0,  # end < start
             )
-    
+
     def test_clip_negative_start(self):
         """测试负开始时间."""
         with pytest.raises(ValueError):
@@ -40,13 +41,13 @@ class TestClip:
 
 class TestTrack:
     """Track 模型测试."""
-    
+
     def test_track_creation(self):
         """测试创建 Track."""
         track = Track(name="Video 1", track_type="video")
         assert track.name == "Video 1"
         assert track.track_type == "video"
-    
+
     def test_add_clip(self):
         """测试添加 Clip."""
         track = Track(name="Video", track_type="video")
@@ -57,13 +58,13 @@ class TestTrack:
 
 class TestTimeline:
     """Timeline 模型测试."""
-    
+
     def test_timeline_creation(self):
         """测试创建 Timeline."""
         timeline = Timeline()
         assert timeline.duration == 0.0
         assert timeline.resolution == (1920, 1080)
-    
+
     def test_add_track(self):
         """测试添加 Track."""
         timeline = Timeline()
@@ -75,7 +76,7 @@ class TestTimeline:
 
 class TestProject:
     """Project 模型测试."""
-    
+
     def test_project_creation(self):
         """测试创建 Project."""
         project = Project(name="Test Project")

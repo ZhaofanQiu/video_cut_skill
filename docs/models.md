@@ -179,5 +179,5 @@ Expected sizes:
 ## See Also
 
 - [Installation Guide](installation.md)
-- [API Reference](api.md)
+- [API Reference](api/index.md)
 - [Whisper GitHub](https://github.com/openai/whisper)

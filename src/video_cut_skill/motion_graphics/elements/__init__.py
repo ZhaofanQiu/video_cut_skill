@@ -1,16 +1,16 @@
 """Elements - 动效元素库."""
 
-from video_cut_skill.motion_graphics.elements.text import (
-    TextElement,
-    TextStyle,
-    TextAnimation,
-    TextAnimationConfig,
-    TextAlign,
-)
 from video_cut_skill.motion_graphics.elements.shape import (
     ShapeElement,
     ShapeStyle,
     ShapeType,
+)
+from video_cut_skill.motion_graphics.elements.text import (
+    TextAlign,
+    TextAnimation,
+    TextAnimationConfig,
+    TextElement,
+    TextStyle,
 )
 
 __all__ = [

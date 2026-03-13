@@ -43,11 +43,16 @@ nav:
       - Installation: installation.md
       - Quick Start: quickstart.md
       - Testing Guide: testing-guide.md
+      - Model Management: models.md
+      - Troubleshooting: troubleshooting.md
   - API Reference:
       - Overview: api/index.md
   - Development:
       - Phase 1 Log: development/phase1-log.md
+      - Phase 2 Log: development/phase2-log.md
       - Contributing: development/contributing.md
+  - Testing:
+      - Test 9 Summary: testing/test9-summary.md
   - Research:
       - GitHub Research: research/github-research.md
       - Feature Brainstorm: research/feature-brainstorm.md
