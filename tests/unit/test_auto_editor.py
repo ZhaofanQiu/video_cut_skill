@@ -5,7 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from video_cut_skill.auto_editor import AutoEditor, EditIntent
+from video_cut_skill.ai.strategy import EditIntent
+from video_cut_skill.auto_editor import AutoEditor
 
 
 class TestAutoEditor:
