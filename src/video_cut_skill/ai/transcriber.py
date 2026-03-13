@@ -106,7 +106,8 @@ class Transcriber:
         video_path: Union[str, Path],
         language: Optional[str] = None,
         word_timestamps: bool = True,
-        task: str = "transcribe",  # transcribe or translate
+        task: str = "transcribe",
+        fp16: Optional[bool] = None,
     ) -> TranscriptResult:
         """转录音视频.
 
@@ -115,6 +116,7 @@ class Transcriber:
             language: 语言代码 (如 'zh', 'en')，None 则自动检测
             word_timestamps: 是否生成单词级时间戳
             task: 任务类型 (transcribe-转录, translate-翻译为英文)
+            fp16: 是否使用 FP16 推理，None 则自动选择（仅 GPU 有效）
 
         Returns:
             TranscriptResult: 转录结果
@@ -126,12 +128,16 @@ class Transcriber:
 
         logger.info(f"Transcribing: {video_path}")
 
+        # 自动选择 FP16（仅 GPU 模式下有效）
+        use_fp16 = fp16 if fp16 is not None else (self.device == "cuda")
+
         try:
             result = self.model.transcribe(
                 video_path,
                 language=language,
                 task=task,
                 word_timestamps=word_timestamps,
+                fp16=use_fp16,
                 verbose=False,
             )
 
@@ -252,9 +258,9 @@ class Transcriber:
         default_style = {
             "font": "Arial",
             "fontsize": 24,
-            "color": "\u0026H00FFFFFF",  # 白色
+            "color": "&H00FFFFFF",  # 白色
             "outline": 2,
-            "outline_color": "\u0026H00000000",  # 黑色描边
+            "outline_color": "&H00000000",  # 黑色描边
             "alignment": 2,  # 底部居中
         }
         style = {**default_style, **(style or {})}
@@ -279,16 +285,21 @@ class Transcriber:
             # 写入样式
             f.write("[V4+ Styles]\n")
             f.write(
-                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+                "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+                "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+                "Alignment, MarginL, MarginR, MarginV, Encoding\n"
             )
             f.write(
-                f"Style: Default,{style['font']},{style['fontsize']},{style['color']},\u0026H000000FF,{style['outline_color']},\u0026H00000000,0,0,0,0,100,100,0,0,1,{style['outline']},0,{style['alignment']},10,10,10,1\n"
+                f"Style: Default,{style['font']},{style['fontsize']},{style['color']},"
+                f"&H000000FF,{style['outline_color']},&H00000000,0,0,0,0,100,100,0,0,1,"
+                f"{style['outline']},0,{style['alignment']},10,10,10,1\n"
             )
             f.write("\n")
 
             # 写入事件
             f.write("[Events]\n")
-            f.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+            f.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, " "Effect, Text\n")
 
             for seg in transcript.segments:
                 start = format_time_ass(seg.start)
