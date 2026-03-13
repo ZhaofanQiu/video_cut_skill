@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 import whisper
 
 from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
+from video_cut_skill.utils.hardware import get_optimal_device
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,15 @@ class Transcriber:
 
         Args:
             model_size: 模型大小 (tiny/base/small/medium/large/turbo)
-            device: 计算设备 (cuda/cpu)，None 则自动选择
+            device: 计算设备 (cuda/cpu/auto)，None 则自动选择
             download_root: 模型下载目录
         """
         if model_size not in self.MODEL_SIZES:
             raise ValueError(f"Invalid model size: {model_size}. " f"Choose from: {list(self.MODEL_SIZES.keys())}")
 
         self.model_size = model_size
-        self.device = device or ("cuda" if whisper.torch.cuda.is_available() else "cpu")
+        # 使用硬件检测工具自动选择设备
+        self.device = get_optimal_device(device or "auto")
 
         logger.info(f"Loading Whisper model: {model_size} on {self.device}")
 

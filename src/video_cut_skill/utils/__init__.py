@@ -3,6 +3,13 @@
 import logging
 import sys
 
+from video_cut_skill.utils.cache import (
+    CachedSceneDetector,
+    CachedTranscriber,
+    CacheManager,
+)
+from video_cut_skill.utils.hardware import HardwareInfo, get_optimal_device
+
 
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """获取配置好的 logger.
@@ -25,3 +32,13 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
         logger.addHandler(handler)
 
     return logger
+
+
+__all__ = [
+    "CacheManager",
+    "CachedTranscriber",
+    "CachedSceneDetector",
+    "HardwareInfo",
+    "get_optimal_device",
+    "get_logger",
+]
