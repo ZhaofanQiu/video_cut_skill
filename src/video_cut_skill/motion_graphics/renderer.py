@@ -158,13 +158,12 @@ class MotionGraphicsRenderer:
             style = element.style
             if style is None:
                 from video_cut_skill.motion_graphics.elements.text import TextStyle
+
                 style = TextStyle()  # type: ignore[assignment]
 
             # 尝试加载字体
             try:
-                font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont] = ImageFont.truetype(
-                    style.font_family, style.font_size
-                )
+                font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont] = ImageFont.truetype(style.font_family, style.font_size)
             except Exception:
                 font = ImageFont.load_default()
 
