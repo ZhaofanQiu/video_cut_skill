@@ -374,7 +374,10 @@ class FFmpegWrapper:
             输出视频路径
         """
         try:
-            video = ffmpeg.input(str(video_path))
+            # 同时输入视频和音频流
+            input_stream = ffmpeg.input(str(video_path))
+            video = input_stream.video
+            audio = input_stream.audio
             
             # 构建字幕滤镜参数
             sub_params = {"filename": str(subtitle_path)}
@@ -382,8 +385,14 @@ class FFmpegWrapper:
                 # ASS 样式参数
                 pass  # ffmpeg-python 会自动处理
             
+            # 给视频添加字幕滤镜
             video = video.filter("subtitles", **sub_params)
-            stream = ffmpeg.output(video, str(output_path))
+            
+            # 合并视频和音频输出
+            stream = ffmpeg.output(video, audio, str(output_path),
+                                   vcodec="libx264",
+                                   acodec="aac",
+                                   audio_bitrate="128k")
             ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
             
             logger.info(f"Video with subtitles saved to: {output_path}")

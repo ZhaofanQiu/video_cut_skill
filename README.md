@@ -9,7 +9,7 @@
 
 Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提供从原始视频到成片的自动化/半自动化处理能力。
 
-### 当前版本: v0.2.0
+### 当前版本: v0.2.1
 
 ## 核心特性
 
@@ -29,6 +29,21 @@ Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提
 - 🎨 色彩校正、LUT 滤镜
 - 🔊 音频增强、节拍检测
 - 🧠 生成式标题/摘要
+
+## 最新测试结果 (Test 9 - 2026-03-14)
+
+| 测试项 | 状态 | 详情 |
+|--------|------|------|
+| Whisper base 模型 | ✅ 通过 | 中文识别准确率良好 |
+| 字幕生成 | ✅ 通过 | 182 个语音片段，40 个场景 |
+| 音频保留 | ✅ 修复 | `add_subtitle()` 现在保留音频流 |
+| 视频剪辑 | ✅ 通过 | 前 30 秒剪辑成功 |
+| 飞书传输 | ✅ 通过 | `.mp4.bin` 后缀绕过拦截 |
+
+### 已知问题修复
+
+- **音频丢失问题**: `add_subtitle()` 方法现在正确处理视频和音频流，输出的带字幕视频保留原音频
+- **Whisper 模型选择**: 支持 `tiny/base/small/medium/large/turbo` 模型，默认使用 `base`
 
 ## 快速开始
 
@@ -51,7 +66,7 @@ pip install -r requirements.txt
 
 ```bash
 # 下载 Whisper 模型
-python scripts/download_models.py tiny base
+python scripts/download_models.py base
 
 # 查看已下载模型
 python scripts/download_models.py --list
@@ -73,6 +88,7 @@ result = editor.process_video(
         target_duration=60,
         aspect_ratio="9:16",
         add_subtitles=True,
+        whisper_model="base",  # 可选: tiny/base/small/medium/large
         output_path="output.mp4"
     )
 )
@@ -188,16 +204,21 @@ video_cut_skill/
 
 ## 文档
 
+- [SKILL.md](SKILL.md) - Agent 调用文档
 - [模型管理](docs/models.md) - Whisper 模型下载和管理
 - [API 文档](docs/api/) - 详细 API 参考
 - [开发指南](docs/development.md) - 开发环境设置
 - [测试指南](docs/testing-guide.md) - 测试说明
+- [故障排除](docs/troubleshooting.md) - 常见问题
 
 ## 测试
 
 ```bash
 # 运行 Phase 1 测试
 python tests/integration/test_phase1.py
+
+# 运行 Test 9 (最新测试)
+python tests/integration/test9.py
 
 # 运行 Phase 2 测试
 python tests/integration/test_phase2.py
@@ -228,6 +249,12 @@ MIT License - 详见 [LICENSE](LICENSE)
 5. 创建 Pull Request
 
 ## 更新日志
+
+### v0.2.1 (2026-03-14)
+- ✅ Test 9 通过：Whisper base 模型 + 字幕修复
+- ✅ 修复 `add_subtitle()` 音频丢失问题
+- ✅ 支持 `whisper_model` 参数 (tiny/base/small/medium/large/turbo)
+- ✅ 添加飞书文件传输文档
 
 ### v0.2.0 (2026-03-14)
 - ✅ Phase 2 完成：AI 分析、策略生成、Motion Graphics

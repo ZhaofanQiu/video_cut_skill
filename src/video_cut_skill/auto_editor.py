@@ -16,6 +16,7 @@ class EditConfig:
     aspect_ratio: str = "original"
     add_subtitles: bool = True
     output_path: Optional[str] = None
+    whisper_model: str = "base"  # tiny/base/small/medium/large/turbo
 
 
 @dataclass
@@ -93,7 +94,7 @@ class AutoEditor:
         if config.add_subtitles:
             print("\n2️⃣  Transcribing audio...")
             if self.transcriber is None:
-                self.transcriber = Transcriber(model_size="base")
+                self.transcriber = Transcriber(model_size=config.whisper_model)
             transcript = self.transcriber.transcribe(video_path)
             print(f"   Language: {transcript.language}")
             print(f"   Segments: {len(transcript.segments)}")
@@ -189,6 +190,7 @@ class AutoEditor:
         keywords: List[str],
         output_path: Union[str, Path],
         context_seconds: float = 2.0,
+        whisper_model: str = "base",
     ) -> Path:
         """提取关键词精彩片段.
         
@@ -197,6 +199,7 @@ class AutoEditor:
             keywords: 关键词列表
             output_path: 输出路径
             context_seconds: 上下文时间（秒）
+            whisper_model: Whisper模型 (tiny/base/small/medium/large/turbo)
             
         Returns:
             输出视频路径
@@ -208,7 +211,7 @@ class AutoEditor:
         
         # 语音识别
         if self.transcriber is None:
-            self.transcriber = Transcriber(model_size="base")
+            self.transcriber = Transcriber(model_size=whisper_model)
         
         transcript = self.transcriber.transcribe(video_path)
         

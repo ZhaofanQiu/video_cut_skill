@@ -74,15 +74,15 @@ def test_ffmpeg_wrapper(video_path: str):
 
 
 def test_transcriber(video_path: str):
-    """测试语音识别 (使用 tiny 模型，快速测试)."""
+    """测试语音识别 (使用 base 模型)."""
     print("\n" + "="*60)
     print("Testing Transcriber")
     print("="*60)
     
     from video_cut_skill import Transcriber
     
-    print("\n1. Loading Whisper model (tiny - fast for testing)...")
-    transcriber = Transcriber(model_size="tiny")
+    print("\n1. Loading Whisper model (base - good accuracy)...")
+    transcriber = Transcriber(model_size="base")
     print("   ✅ Model loaded")
     
     print("\n2. Testing transcribe()...")
