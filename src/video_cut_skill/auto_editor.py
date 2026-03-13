@@ -1,137 +1,251 @@
-"""AutoEditor - 一键智能剪辑器."""
+"""AutoEditor - 一键智能剪辑器 (Phase 1 简化版)."""
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
 
-from video_cut_skill.ai.analyzer import ContentAnalyzer
-from video_cut_skill.ai.strategy import EditingStrategy, EditIntent
-from video_cut_skill.core.engine import EditingEngine
-from video_cut_skill.core.project import Project
-from video_cut_skill.motion_graphics.renderer import MotionGraphicsRenderer
-from video_cut_skill.utils.logger import get_logger
+from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
+from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult
+from video_cut_skill.ai.scene_detector import SceneDetector, SceneDetectionResult
 
-logger = get_logger(__name__)
+
+@dataclass
+class EditConfig:
+    """编辑配置."""
+    target_duration: Optional[float] = None
+    aspect_ratio: str = "original"
+    add_subtitles: bool = True
+    output_path: Optional[str] = None
+
+
+@dataclass
+class EditResult:
+    """编辑结果."""
+    output_path: Path
+    transcript: Optional[TranscriptResult] = None
+    scenes: Optional[SceneDetectionResult] = None
 
 
 class AutoEditor:
-    """一键智能视频剪辑器.
+    """一键智能视频剪辑器 (Phase 1).
     
-    提供从原始视频到成片的自动化编辑能力.
+    当前功能：
+    - 视频剪辑和拼接
+    - 语音识别和字幕生成
+    - 场景检测和分割
     
     Example:
         >>> editor = AutoEditor()
-        >>> result = editor.auto_edit(
+        >>> result = editor.process_video(
         ...     video_path="input.mp4",
-        ...     intent=EditIntent(
+        ...     config=EditConfig(
         ...         target_duration=60,
         ...         aspect_ratio="9:16",
-        ...         style="modern"
         ...     )
         ... )
     """
     
     def __init__(
         self,
-        engine: Optional[EditingEngine] = None,
-        analyzer: Optional[ContentAnalyzer] = None,
-        strategy: Optional[EditingStrategy] = None,
-        mg_renderer: Optional[MotionGraphicsRenderer] = None,
+        ffmpeg: Optional[FFmpegWrapper] = None,
+        transcriber: Optional[Transcriber] = None,
+        scene_detector: Optional[SceneDetector] = None,
     ):
         """初始化 AutoEditor.
         
         Args:
-            engine: 编辑引擎实例
-            analyzer: 内容分析器实例
-            strategy: 剪辑策略生成器实例
-            mg_renderer: Motion Graphics 渲染器实例
+            ffmpeg: FFmpeg 封装实例
+            transcriber: 语音识别器实例
+            scene_detector: 场景检测器实例
         """
-        self.engine = engine or EditingEngine()
-        self.analyzer = analyzer or ContentAnalyzer()
-        self.strategy = strategy or EditingStrategy()
-        self.mg_renderer = mg_renderer or MotionGraphicsRenderer()
-        
-        logger.info("AutoEditor initialized")
+        self.ffmpeg = ffmpeg or FFmpegWrapper()
+        self.transcriber = transcriber
+        self.scene_detector = scene_detector or SceneDetector()
     
-    def auto_edit(
+    def process_video(
         self,
         video_path: Union[str, Path],
-        intent: EditIntent,
-        output_path: Optional[Union[str, Path]] = None,
-    ) -> "EditingResult":
-        """一键智能剪辑.
+        config: EditConfig,
+    ) -> EditResult:
+        """处理视频.
         
         Args:
             video_path: 输入视频路径
-            intent: 编辑意图
-            output_path: 输出路径 (可选)
+            config: 编辑配置
             
         Returns:
-            EditingResult: 编辑结果
-            
-        Raises:
-            FileNotFoundError: 输入文件不存在
-            ValueError: 参数无效
+            EditResult: 处理结果
         """
         video_path = Path(video_path)
         if not video_path.exists():
             raise FileNotFoundError(f"Video file not found: {video_path}")
         
-        logger.info(f"Starting auto edit for: {video_path}")
+        print(f"🎬 Processing video: {video_path}")
         
-        # 1. 内容分析
-        logger.info("Step 1: Analyzing content...")
-        analysis = self.analyzer.analyze(str(video_path))
+        # 1. 获取视频信息
+        print("\n1️⃣  Getting video info...")
+        info = self.ffmpeg.get_video_info(video_path)
+        print(f"   Duration: {info['duration']:.1f}s")
+        print(f"   Resolution: {info['width']}x{info['height']}")
         
-        # 2. 生成剪辑策略
-        logger.info("Step 2: Generating editing strategy...")
-        strategy_result = self.strategy.generate(analysis, intent)
+        # 2. 语音识别（如果启用）
+        transcript = None
+        if config.add_subtitles:
+            print("\n2️⃣  Transcribing audio...")
+            if self.transcriber is None:
+                self.transcriber = Transcriber(model_size="base")
+            transcript = self.transcriber.transcribe(video_path)
+            print(f"   Language: {transcript.language}")
+            print(f"   Segments: {len(transcript.segments)}")
         
-        # 3. 生成 Motion Graphics
-        logger.info("Step 3: Generating motion graphics...")
-        mg_assets = self.mg_renderer.generate(strategy_result.mg_specs)
+        # 3. 场景检测
+        print("\n3️⃣  Detecting scenes...")
+        scenes = self.scene_detector.detect(video_path)
+        print(f"   Found {scenes.scene_count} scenes")
         
-        # 4. 构建编辑项目
-        logger.info("Step 4: Building project...")
-        project = self._build_project(strategy_result, mg_assets)
+        # 4. 生成输出路径
+        if config.output_path:
+            output_path = Path(config.output_path)
+        else:
+            output_path = video_path.parent / f"{video_path.stem}_processed{video_path.suffix}"
         
-        # 5. 执行渲染
-        logger.info("Step 5: Rendering...")
-        if output_path is None:
-            output_path = video_path.parent / f"{video_path.stem}_edited{video_path.suffix}"
+        # 5. 如果指定了目标时长，进行剪辑
+        if config.target_duration and config.target_duration < info['duration']:
+            print(f"\n4️⃣  Cutting to {config.target_duration}s...")
+            self.ffmpeg.cut_clip(
+                video_path,
+                output_path,
+                start_time=0,
+                end_time=config.target_duration,
+            )
+        else:
+            # 复制原文件
+            import shutil
+            shutil.copy(video_path, output_path)
         
-        result_path = self.engine.execute(project, str(output_path))
+        # 6. 添加字幕（如果有）
+        if transcript and config.add_subtitles:
+            print("\n5️⃣  Adding subtitles...")
+            srt_path = output_path.parent / f"{output_path.stem}.srt"
+            self.transcriber.export_srt(transcript, srt_path)
+            
+            # 烧录字幕到视频
+            subtitled_path = output_path.parent / f"{output_path.stem}_subtitled{output_path.suffix}"
+            self.ffmpeg.add_subtitle(output_path, srt_path, subtitled_path)
+            output_path = subtitled_path
         
-        logger.info(f"Auto edit complete: {result_path}")
+        print(f"\n✅ Done! Output: {output_path}")
         
-        return EditingResult(
-            output_path=Path(result_path),
-            strategy=strategy_result,
-            analysis=analysis,
+        return EditResult(
+            output_path=output_path,
+            transcript=transcript,
+            scenes=scenes,
         )
     
-    def _build_project(
+    def cut_by_scenes(
         self,
-        strategy: "StrategyResult",
-        mg_assets: "MGAssets",
-    ) -> Project:
-        """构建编辑项目."""
-        project = Project()
-        # TODO: 实现项目构建逻辑
-        return project
-
-
-class EditingResult:
-    """编辑结果."""
+        video_path: Union[str, Path],
+        output_dir: Union[str, Path],
+        min_scene_duration: float = 1.0,
+    ) -> List[Path]:
+        """按场景切割视频.
+        
+        Args:
+            video_path: 输入视频路径
+            output_dir: 输出目录
+            min_scene_duration: 最小场景时长
+            
+        Returns:
+            切割后的视频路径列表
+        """
+        video_path = Path(video_path)
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"🎬 Cutting video by scenes: {video_path}")
+        
+        # 检测场景
+        scenes = self.scene_detector.detect(
+            video_path,
+            min_scene_len=min_scene_duration,
+        )
+        
+        print(f"Found {scenes.scene_count} scenes, cutting...")
+        
+        # 切割视频
+        output_files = self.scene_detector.split_video(
+            video_path,
+            scenes.scenes,
+            output_dir,
+            filename_template="scene_{:03d}.mp4",
+        )
+        
+        print(f"✅ Cut into {len(output_files)} clips")
+        return output_files
     
-    def __init__(
+    def extract_highlights(
         self,
-        output_path: Path,
-        strategy: "StrategyResult",
-        analysis: "ContentAnalysis",
-    ):
-        self.output_path = output_path
-        self.strategy = strategy
-        self.analysis = analysis
-    
-    def __repr__(self) -> str:
-        return f"EditingResult(output_path={self.output_path})"
+        video_path: Union[str, Path],
+        keywords: List[str],
+        output_path: Union[str, Path],
+        context_seconds: float = 2.0,
+    ) -> Path:
+        """提取关键词精彩片段.
+        
+        Args:
+            video_path: 输入视频路径
+            keywords: 关键词列表
+            output_path: 输出路径
+            context_seconds: 上下文时间（秒）
+            
+        Returns:
+            输出视频路径
+        """
+        video_path = Path(video_path)
+        
+        print(f"🎬 Extracting highlights from: {video_path}")
+        print(f"Keywords: {keywords}")
+        
+        # 语音识别
+        if self.transcriber is None:
+            self.transcriber = Transcriber(model_size="base")
+        
+        transcript = self.transcriber.transcribe(video_path)
+        
+        # 检测关键词
+        matches = self.transcriber.detect_keywords(
+            transcript,
+            keywords,
+            context_seconds=context_seconds,
+        )
+        
+        if not matches:
+            print("⚠️  No keywords found")
+            return video_path
+        
+        print(f"Found {len(matches)} keyword matches")
+        
+        # 剪辑片段
+        clips = []
+        temp_dir = Path("/tmp/video_cut_skill")
+        temp_dir.mkdir(exist_ok=True)
+        
+        for i, match in enumerate(matches):
+            clip_path = temp_dir / f"highlight_{i:03d}.mp4"
+            self.ffmpeg.cut_clip(
+                video_path,
+                clip_path,
+                start_time=match["start"],
+                end_time=match["end"],
+            )
+            clips.append(clip_path)
+        
+        # 拼接片段
+        if len(clips) > 1:
+            self.ffmpeg.concatenate_clips(clips, output_path)
+        else:
+            import shutil
+            shutil.copy(clips[0], output_path)
+        
+        print(f"✅ Highlights saved: {output_path}")
+        return Path(output_path)
