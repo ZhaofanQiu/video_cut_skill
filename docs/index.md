@@ -100,6 +100,7 @@ See [Quick Start](quickstart.md) for more examples.
 - [Installation](installation.md) - Setup and dependencies
 - [Quick Start](quickstart.md) - Basic usage
 - [Model Management](models.md) - Whisper model download guide
+- [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ### Development
 - [Testing Guide](testing-guide.md) - How to run tests

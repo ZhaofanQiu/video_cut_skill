@@ -123,7 +123,7 @@ class FFmpegWrapper:
         output_path: Union[str, Path],
         start_time: float,
         end_time: float,
-        copy_codec: bool = True,
+        copy_codec: bool = False,  # 默认改为 False，确保精确剪辑
     ) -> Path:
         """剪辑视频片段.
         
@@ -132,30 +132,81 @@ class FFmpegWrapper:
             output_path: 输出视频路径
             start_time: 开始时间（秒）
             end_time: 结束时间（秒）
-            copy_codec: 是否直接复制编码（更快但可能有精度问题）
+            copy_codec: 是否直接复制编码
+                - True: 更快，但可能因关键帧对齐导致时长偏差
+                - False: 重新编码，更精确但较慢（默认）
             
         Returns:
             输出文件路径
+            
+        Note:
+            当 copy_codec=True 时，由于视频编码使用关键帧（I-frame），
+            剪辑的起止时间会自动对齐到最近的关键帧，可能导致：
+            - 实际剪辑时长比预期稍长（多包含几帧）
+            - 剪辑起始时间可能比指定时间稍早
+            
+            如需精确剪辑，请使用 copy_codec=False（默认）
+            
+        Example:
+            # 精确剪辑（推荐）
+            wrapper.cut_clip("input.mp4", "output.mp4", 10, 20)  # reencode 模式
+            
+            # 快速剪辑（可能有轻微偏差）
+            wrapper.cut_clip("input.mp4", "output.mp4", 10, 20, copy_codec=True)
         """
         input_path = str(input_path)
         output_path = str(output_path)
         duration = end_time - start_time
         
+        if duration <= 0:
+            raise ValueError(f"Invalid duration: {duration}. end_time must be > start_time")
+        
         try:
-            stream = ffmpeg.input(input_path, ss=start_time, t=duration)
-            
             if copy_codec:
+                # 快速模式：复制编码，但可能有关键帧对齐问题
+                stream = ffmpeg.input(input_path, ss=start_time, t=duration)
                 stream = ffmpeg.output(
                     stream,
                     output_path,
                     c="copy",
                     avoid_negative_ts="make_zero",
                 )
+                logger.info(f"Cutting clip (fast copy mode): {start_time}s - {end_time}s")
             else:
-                stream = ffmpeg.output(stream, output_path)
+                # 精确模式：重新编码，确保时间精确
+                stream = ffmpeg.input(input_path, ss=start_time, t=duration)
+                stream = ffmpeg.output(
+                    stream,
+                    output_path,
+                    vcodec="libx264",
+                    acodec="aac",
+                    video_bitrate="2M",
+                    audio_bitrate="128k",
+                    pix_fmt="yuv420p",
+                    avoid_negative_ts="make_zero",
+                )
+                logger.info(f"Cutting clip (precise reencode mode): {start_time}s - {end_time}s")
             
             ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
-            logger.info(f"Cut clip saved to: {output_path}")
+            
+            # 验证输出文件
+            if not Path(output_path).exists():
+                raise FFmpegError("Clip creation failed: output file not created")
+            
+            # 获取实际剪辑时长
+            output_info = self.get_video_info(output_path)
+            actual_duration = output_info.get("duration", 0)
+            expected_duration = end_time - start_time
+            duration_diff = abs(actual_duration - expected_duration)
+            
+            if duration_diff > 1.0:
+                logger.warning(
+                    f"Clip duration mismatch. Expected: {expected_duration:.2f}s, "
+                    f"Actual: {actual_duration:.2f}s, Diff: {duration_diff:.2f}s. "
+                    f"Use copy_codec=False for precise cutting."
+                )
+            
+            logger.info(f"Clip saved: {output_path} (duration: {actual_duration:.2f}s)")
             return Path(output_path)
             
         except ffmpeg.Error as e:
@@ -228,8 +279,47 @@ class FFmpegWrapper:
             
         Returns:
             输出音频路径
+            
+        Raises:
+            FFmpegError: 提取失败或音频流损坏
+            VideoIntegrityError: 视频文件完整性检查失败
         """
+        video_path = Path(video_path)
+        output_path = Path(output_path)
+        
+        # 1. 检查视频文件是否存在
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video file not found: {video_path}")
+        
         try:
+            # 2. 获取视频和音频流信息，检查完整性
+            probe_data = self.probe(video_path)
+            video_duration = None
+            audio_duration = None
+            
+            for stream in probe_data.get("streams", []):
+                if stream.get("codec_type") == "video":
+                    video_duration = float(stream.get("duration", 0))
+                elif stream.get("codec_type") == "audio":
+                    audio_duration = float(stream.get("duration", 0))
+            
+            # 3. 检查音频流是否存在
+            if audio_duration is None:
+                raise FFmpegError(f"No audio stream found in video: {video_path}")
+            
+            # 4. 检查音频流完整性（与视频流时长对比）
+            if video_duration and audio_duration > 0:
+                duration_diff = abs(video_duration - audio_duration)
+                if duration_diff > 5.0:  # 允许5秒误差
+                    logger.warning(
+                        f"Audio stream may be corrupted. "
+                        f"Video duration: {video_duration:.2f}s, "
+                        f"Audio duration: {audio_duration:.2f}s, "
+                        f"Difference: {duration_diff:.2f}s"
+                    )
+                    # 不抛出错误，但记录警告，继续尝试提取
+            
+            # 5. 提取音频
             stream = ffmpeg.input(str(video_path))
             stream = ffmpeg.output(
                 stream,
@@ -239,8 +329,28 @@ class FFmpegWrapper:
                 audio_bitrate=bitrate,
             )
             ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
-            logger.info(f"Audio extracted to: {output_path}")
-            return Path(output_path)
+            
+            # 6. 验证输出音频
+            if not output_path.exists():
+                raise FFmpegError("Audio extraction failed: output file not created")
+            
+            output_info = self.probe(output_path)
+            output_duration = float(output_info.get("format", {}).get("duration", 0))
+            
+            # 7. 检查输出音频完整性
+            if audio_duration > 0 and output_duration > 0:
+                output_diff = abs(audio_duration - output_duration)
+                if output_diff > 1.0:  # 输出与原始音频流差异超过1秒
+                    logger.warning(
+                        f"Extracted audio duration mismatch. "
+                        f"Expected: {audio_duration:.2f}s, "
+                        f"Got: {output_duration:.2f}s"
+                    )
+            
+            logger.info(f"Audio extracted to: {output_path} "
+                       f"(duration: {output_duration:.2f}s)")
+            return output_path
+            
         except ffmpeg.Error as e:
             error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
             raise FFmpegError(f"Failed to extract audio: {error_msg}") from e
