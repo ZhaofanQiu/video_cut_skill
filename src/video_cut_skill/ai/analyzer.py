@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from video_cut_skill.ai.scene_detector import SceneDetectionResult, SceneDetector
 from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult
