@@ -7,6 +7,7 @@ from typing import Optional
 
 class ShapeType(Enum):
     """形状类型."""
+
     RECTANGLE = "rectangle"
     CIRCLE = "circle"
     ELLIPSE = "ellipse"

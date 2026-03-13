@@ -264,43 +264,33 @@ def ease_in_out_bounce(t: float) -> float:
 # 缓动函数映射表
 _EASING_FUNCTIONS = {
     EasingType.LINEAR: linear,
-
     EasingType.EASE_IN_QUAD: ease_in_quad,
     EasingType.EASE_OUT_QUAD: ease_out_quad,
     EasingType.EASE_IN_OUT_QUAD: ease_in_out_quad,
-
     EasingType.EASE_IN_CUBIC: ease_in_cubic,
     EasingType.EASE_OUT_CUBIC: ease_out_cubic,
     EasingType.EASE_IN_OUT_CUBIC: ease_in_out_cubic,
-
     EasingType.EASE_IN_QUART: ease_in_quart,
     EasingType.EASE_OUT_QUART: ease_out_quart,
     EasingType.EASE_IN_OUT_QUART: ease_in_out_quart,
-
     EasingType.EASE_IN_QUINT: ease_in_quint,
     EasingType.EASE_OUT_QUINT: ease_out_quint,
     EasingType.EASE_IN_OUT_QUINT: ease_in_out_quint,
-
     EasingType.EASE_IN_SINE: ease_in_sine,
     EasingType.EASE_OUT_SINE: ease_out_sine,
     EasingType.EASE_IN_OUT_SINE: ease_in_out_sine,
-
     EasingType.EASE_IN_EXPO: ease_in_expo,
     EasingType.EASE_OUT_EXPO: ease_out_expo,
     EasingType.EASE_IN_OUT_EXPO: ease_in_out_expo,
-
     EasingType.EASE_IN_CIRC: ease_in_circ,
     EasingType.EASE_OUT_CIRC: ease_out_circ,
     EasingType.EASE_IN_OUT_CIRC: ease_in_out_circ,
-
     EasingType.EASE_IN_BACK: ease_in_back,
     EasingType.EASE_OUT_BACK: ease_out_back,
     EasingType.EASE_IN_OUT_BACK: ease_in_out_back,
-
     EasingType.EASE_IN_ELASTIC: ease_in_elastic,
     EasingType.EASE_OUT_ELASTIC: ease_out_elastic,
     EasingType.EASE_IN_OUT_ELASTIC: ease_in_out_elastic,
-
     EasingType.EASE_IN_BOUNCE: ease_in_bounce,
     EasingType.EASE_OUT_BOUNCE: ease_out_bounce,
     EasingType.EASE_IN_OUT_BOUNCE: ease_in_out_bounce,

@@ -27,7 +27,7 @@ class TestAutoEditor:
                 intent=EditIntent(),
             )
 
-    @patch('video_cut_skill.auto_editor.Path.exists')
+    @patch("video_cut_skill.auto_editor.Path.exists")
     def test_auto_edit_success(self, mock_exists):
         """测试成功剪辑."""
         mock_exists.return_value = True

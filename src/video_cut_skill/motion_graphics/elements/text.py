@@ -7,6 +7,7 @@ from typing import Optional, Tuple
 
 class TextAnimation(Enum):
     """文字动画类型."""
+
     NONE = "none"
     FADE = "fade"
     SLIDE_UP = "slide_up"
@@ -20,6 +21,7 @@ class TextAnimation(Enum):
 
 class TextAlign(Enum):
     """文字对齐方式."""
+
     LEFT = "left"
     CENTER = "center"
     RIGHT = "right"
@@ -128,12 +130,7 @@ class TextElement:
         """检查在指定时间是否可见."""
         return self.start_time <= time < self.end_time
 
-    def get_animation_progress(
-        self,
-        time: float,
-        animation_config: TextAnimationConfig,
-        is_entry: bool = True
-    ) -> float:
+    def get_animation_progress(self, time: float, animation_config: TextAnimationConfig, is_entry: bool = True) -> float:
         """获取动画进度.
 
         Args:

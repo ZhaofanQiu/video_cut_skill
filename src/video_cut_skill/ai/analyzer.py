@@ -217,6 +217,7 @@ class ContentAnalyzer:
 
         # 获取视频时长
         from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
+
         ffmpeg = FFmpegWrapper()
         info = ffmpeg.get_video_info(video_path)
         duration = info.get("duration", 0)
@@ -325,7 +326,64 @@ class ContentAnalyzer:
         full_text = " ".join([s.text for s in transcript.segments])
 
         # 简单的词频统计 (移除停用词)
-        stop_words = {"the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "to", "of", "and", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me"}
+        stop_words = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "to",
+            "of",
+            "and",
+            "in",
+            "that",
+            "have",
+            "i",
+            "it",
+            "for",
+            "not",
+            "on",
+            "with",
+            "he",
+            "as",
+            "you",
+            "do",
+            "at",
+            "this",
+            "but",
+            "his",
+            "by",
+            "from",
+            "they",
+            "we",
+            "say",
+            "her",
+            "she",
+            "or",
+            "will",
+            "my",
+            "one",
+            "all",
+            "would",
+            "there",
+            "their",
+            "what",
+            "so",
+            "up",
+            "out",
+            "if",
+            "about",
+            "who",
+            "get",
+            "which",
+            "go",
+            "me",
+        }
 
         words = full_text.lower().split()
         word_freq = {}
@@ -349,21 +407,13 @@ class ContentAnalyzer:
             精彩片段列表 (按重要性排序)
         """
         # 按重要性排序
-        sorted_segments = sorted(
-            segments,
-            key=lambda s: s.importance_score,
-            reverse=True
-        )
+        sorted_segments = sorted(segments, key=lambda s: s.importance_score, reverse=True)
 
         # 返回前 20%
         top_count = max(1, len(sorted_segments) // 5)
         return sorted_segments[:top_count]
 
-    def _extract_audio_features(
-        self,
-        video_path: Path,
-        transcript: Optional[TranscriptResult] = None
-    ) -> AudioFeatures:
+    def _extract_audio_features(self, video_path: Path, transcript: Optional[TranscriptResult] = None) -> AudioFeatures:
         """提取音频特征.
 
         Args:
@@ -381,21 +431,19 @@ class ContentAnalyzer:
             # 1. 获取音频的音量统计信息
             cmd = [
                 "ffmpeg",
-                "-i", str(video_path),
-                "-af", "volumedetect",
+                "-i",
+                str(video_path),
+                "-af",
+                "volumedetect",
                 "-vn",  # 禁用视频
                 "-sn",  # 禁用字幕
                 "-dn",  # 禁用数据流
-                "-f", "null",
-                "-"
+                "-f",
+                "null",
+                "-",
             ]
 
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
             output = result.stderr  # FFmpeg 输出到 stderr
 
@@ -416,21 +464,19 @@ class ContentAnalyzer:
             try:
                 silence_cmd = [
                     "ffmpeg",
-                    "-i", str(video_path),
-                    "-af", "silencedetect=noise=-50dB:d=0.5",  # -50dB 阈值，0.5秒以上
+                    "-i",
+                    str(video_path),
+                    "-af",
+                    "silencedetect=noise=-50dB:d=0.5",  # -50dB 阈值，0.5秒以上
                     "-vn",
                     "-sn",
                     "-dn",
-                    "-f", "null",
-                    "-"
+                    "-f",
+                    "null",
+                    "-",
                 ]
 
-                silence_result = subprocess.run(
-                    silence_cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=120
-                )
+                silence_result = subprocess.run(silence_cmd, capture_output=True, text=True, timeout=120)
 
                 silence_output = silence_result.stderr
 
@@ -447,14 +493,8 @@ class ContentAnalyzer:
             # 3. 计算语速 (基于转录结果)
             speech_rate = 0.0
             if transcript and transcript.segments:
-                total_words = sum(
-                    len(seg.text.split())
-                    for seg in transcript.segments
-                )
-                total_duration = sum(
-                    seg.end - seg.start
-                    for seg in transcript.segments
-                )
+                total_words = sum(len(seg.text.split()) for seg in transcript.segments)
+                total_duration = sum(seg.end - seg.start for seg in transcript.segments)
 
                 if total_duration > 0:
                     # words per minute

@@ -123,8 +123,7 @@ class TestTranscriber:
 
     def test_transcribe_success(self):
         """测试成功转录."""
-        with patch("whisper.load_model") as mock_load, \
-             patch("os.path.exists") as mock_exists:
+        with patch("whisper.load_model") as mock_load, patch("os.path.exists") as mock_exists:
             mock_model = Mock()
             mock_model.transcribe.return_value = {
                 "text": "Hello world",
@@ -153,8 +152,7 @@ class TestTranscriber:
 
     def test_transcribe_file_not_found(self):
         """测试文件不存在."""
-        with patch("whisper.load_model") as mock_load, \
-             patch("os.path.exists") as mock_exists:
+        with patch("whisper.load_model") as mock_load, patch("os.path.exists") as mock_exists:
             mock_load.return_value = Mock()
             mock_exists.return_value = False
 

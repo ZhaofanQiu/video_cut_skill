@@ -83,7 +83,7 @@ class TestSceneDetectionResult:
         longest = result.get_longest_scenes(n=2)
         assert len(longest) == 2
         assert longest[0].duration == 15.0  # 5-20
-        assert longest[1].duration == 5.0   # 0-5 或 20-25
+        assert longest[1].duration == 5.0  # 0-5 或 20-25
 
 
 class TestSceneDetector:
@@ -176,4 +176,4 @@ class TestSceneDetector:
 
         assert len(merged) == 2  # 前两个合并，最后一个独立
         assert merged[0].duration == 10.0  # 0-10
-        assert merged[1].duration == 5.0   # 15-20
+        assert merged[1].duration == 5.0  # 15-20

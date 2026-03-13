@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class FFmpegError(Exception):
     """FFmpeg 操作错误."""
+
     pass
 
 
@@ -46,10 +47,7 @@ class FFmpegWrapper:
             version_line = result.stdout.split("\n")[0]
             logger.info(f"FFmpeg found: {version_line}")
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            raise FFmpegError(
-                f"FFmpeg not found at {self.ffmpeg_path}. "
-                "Please install FFmpeg first."
-            ) from e
+            raise FFmpegError(f"FFmpeg not found at {self.ffmpeg_path}. " "Please install FFmpeg first.") from e
 
     def probe(self, video_path: Union[str, Path]) -> Dict[str, Any]:
         """获取视频元数据.
@@ -341,14 +339,9 @@ class FFmpegWrapper:
             if audio_duration > 0 and output_duration > 0:
                 output_diff = abs(audio_duration - output_duration)
                 if output_diff > 1.0:  # 输出与原始音频流差异超过1秒
-                    logger.warning(
-                        f"Extracted audio duration mismatch. "
-                        f"Expected: {audio_duration:.2f}s, "
-                        f"Got: {output_duration:.2f}s"
-                    )
+                    logger.warning(f"Extracted audio duration mismatch. " f"Expected: {audio_duration:.2f}s, " f"Got: {output_duration:.2f}s")
 
-            logger.info(f"Audio extracted to: {output_path} "
-                       f"(duration: {output_duration:.2f}s)")
+            logger.info(f"Audio extracted to: {output_path} " f"(duration: {output_duration:.2f}s)")
             return output_path
 
         except ffmpeg.Error as e:
@@ -389,10 +382,7 @@ class FFmpegWrapper:
             video = video.filter("subtitles", **sub_params)
 
             # 合并视频和音频输出
-            stream = ffmpeg.output(video, audio, str(output_path),
-                                   vcodec="libx264",
-                                   acodec="aac",
-                                   audio_bitrate="128k")
+            stream = ffmpeg.output(video, audio, str(output_path), vcodec="libx264", acodec="aac", audio_bitrate="128k")
             ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
 
             logger.info(f"Video with subtitles saved to: {output_path}")
@@ -494,32 +484,40 @@ class FFmpegWrapper:
 
             elif mode == "pad":
                 # 添加填充保持比例
-                stream = stream.filter(
-                    "pad",
-                    width=f"ih*{target_ratio[0]}/{target_ratio[1]}",
-                    height="ih",
-                    x="(ow-iw)/2",
-                    y=0,
-                    color=pad_color,
-                ) if orig_ratio < target_ratio_val else stream.filter(
-                    "pad",
-                    width="iw",
-                    height=f"iw*{target_ratio[1]}/{target_ratio[0]}",
-                    x=0,
-                    y="(oh-ih)/2",
-                    color=pad_color,
+                stream = (
+                    stream.filter(
+                        "pad",
+                        width=f"ih*{target_ratio[0]}/{target_ratio[1]}",
+                        height="ih",
+                        x="(ow-iw)/2",
+                        y=0,
+                        color=pad_color,
+                    )
+                    if orig_ratio < target_ratio_val
+                    else stream.filter(
+                        "pad",
+                        width="iw",
+                        height=f"iw*{target_ratio[1]}/{target_ratio[0]}",
+                        x=0,
+                        y="(oh-ih)/2",
+                        color=pad_color,
+                    )
                 )
 
             elif mode == "crop":
                 # 裁剪中心区域
-                stream = stream.filter(
-                    "crop",
-                    width=f"ih*{target_ratio[0]}/{target_ratio[1]}",
-                    height="ih",
-                ) if orig_ratio > target_ratio_val else stream.filter(
-                    "crop",
-                    width="iw",
-                    height=f"iw*{target_ratio[1]}/{target_ratio[0]}",
+                stream = (
+                    stream.filter(
+                        "crop",
+                        width=f"ih*{target_ratio[0]}/{target_ratio[1]}",
+                        height="ih",
+                    )
+                    if orig_ratio > target_ratio_val
+                    else stream.filter(
+                        "crop",
+                        width="iw",
+                        height=f"iw*{target_ratio[1]}/{target_ratio[0]}",
+                    )
                 )
 
             stream = ffmpeg.output(stream, str(output_path))

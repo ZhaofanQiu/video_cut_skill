@@ -10,11 +10,16 @@ def create_test_video(output_path: str, duration: int = 10):
     """创建测试视频."""
     cmd = [
         "ffmpeg",
-        "-f", "lavfi",
-        "-i", f"testsrc=duration={duration}:size=1920x1080:rate=30",
-        "-f", "lavfi",
-        "-i", f"sine=frequency=1000:duration={duration}",
-        "-pix_fmt", "yuv420p",
+        "-f",
+        "lavfi",
+        "-i",
+        f"testsrc=duration={duration}:size=1920x1080:rate=30",
+        "-f",
+        "lavfi",
+        "-i",
+        f"sine=frequency=1000:duration={duration}",
+        "-pix_fmt",
+        "yuv420p",
         "-y",
         output_path,
     ]
@@ -24,9 +29,9 @@ def create_test_video(output_path: str, duration: int = 10):
 
 def test_ffmpeg_wrapper(video_path: str):
     """测试 FFmpeg Wrapper."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Testing FFmpeg Wrapper")
-    print("="*60)
+    print("=" * 60)
 
     from video_cut_skill import FFmpegWrapper
 
@@ -35,10 +40,10 @@ def test_ffmpeg_wrapper(video_path: str):
     # Test 1: Get video info
     print("\n1. Testing get_video_info()...")
     info = wrapper.get_video_info(video_path)
-    assert info['duration'] >= 10, "Duration should be >= 10"
-    assert info['width'] == 1920, "Width should be 1920"
-    assert info['height'] == 1080, "Height should be 1080"
-    assert info['has_audio'] is True, "Should have audio"
+    assert info["duration"] >= 10, "Duration should be >= 10"
+    assert info["width"] == 1920, "Width should be 1920"
+    assert info["height"] == 1080, "Height should be 1080"
+    assert info["has_audio"] is True, "Should have audio"
     print(f"   ✅ Video info: {info['width']}x{info['height']}, {info['duration']:.1f}s")
 
     # Test 2: Cut clip (use reencode for precise cutting)
@@ -47,7 +52,7 @@ def test_ffmpeg_wrapper(video_path: str):
     result = wrapper.cut_clip(video_path, clip_path, start_time=2.0, end_time=5.0, copy_codec=False)
     assert Path(result).exists(), "Clip file should exist"
     clip_info = wrapper.get_video_info(clip_path)
-    assert abs(clip_info['duration'] - 3.0) < 0.5, f"Clip duration should be ~3s, got {clip_info['duration']}"
+    assert abs(clip_info["duration"] - 3.0) < 0.5, f"Clip duration should be ~3s, got {clip_info['duration']}"
     print(f"   ✅ Clip created: {clip_path}, duration: {clip_info['duration']:.1f}s")
 
     # Test 3: Extract audio
@@ -60,14 +65,11 @@ def test_ffmpeg_wrapper(video_path: str):
     # Test 4: Change aspect ratio
     print("\n4. Testing change_aspect_ratio()...")
     vertical_path = "/tmp/test_vertical.mp4"
-    result = wrapper.change_aspect_ratio(
-        video_path, vertical_path,
-        target_ratio=(9, 16), mode="pad"
-    )
+    result = wrapper.change_aspect_ratio(video_path, vertical_path, target_ratio=(9, 16), mode="pad")
     assert Path(result).exists(), "Vertical video should exist"
     vertical_info = wrapper.get_video_info(vertical_path)
     # 9:16 ratio means width < height
-    assert vertical_info['width'] < vertical_info['height'], "Should be vertical"
+    assert vertical_info["width"] < vertical_info["height"], "Should be vertical"
     print(f"   ✅ Aspect ratio changed: {vertical_info['width']}x{vertical_info['height']}")
 
     print("\n✅ FFmpeg Wrapper tests passed!")
@@ -75,9 +77,9 @@ def test_ffmpeg_wrapper(video_path: str):
 
 def test_transcriber(video_path: str):
     """测试语音识别 (使用 base 模型)."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Testing Transcriber")
-    print("="*60)
+    print("=" * 60)
 
     from video_cut_skill import Transcriber
 
@@ -102,9 +104,9 @@ def test_transcriber(video_path: str):
 
 def test_scene_detector(video_path: str):
     """测试场景检测."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Testing Scene Detector")
-    print("="*60)
+    print("=" * 60)
 
     from video_cut_skill import SceneDetector
 
@@ -128,21 +130,16 @@ def test_scene_detector(video_path: str):
 
 def test_auto_editor(video_path: str):
     """测试 AutoEditor."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Testing AutoEditor")
-    print("="*60)
+    print("=" * 60)
 
     from video_cut_skill.auto_editor import AutoEditor, EditConfig
 
     editor = AutoEditor()
 
     print("\n1. Testing process_video()...")
-    config = EditConfig(
-        target_duration=5.0,
-        aspect_ratio="original",
-        add_subtitles=True,
-        output_path="/tmp/test_output.mp4"
-    )
+    config = EditConfig(target_duration=5.0, aspect_ratio="original", add_subtitles=True, output_path="/tmp/test_output.mp4")
     result = editor.process_video(video_path, config)
     assert result.output_path.exists(), "Output file should exist"
     print(f"   ✅ Video processed: {result.output_path}")
@@ -157,9 +154,9 @@ def test_auto_editor(video_path: str):
 
 def main():
     """主函数."""
-    print("="*60)
+    print("=" * 60)
     print("Video Cut Skill - Phase 1 Integration Test")
-    print("="*60)
+    print("=" * 60)
 
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
@@ -176,20 +173,22 @@ def main():
         test_scene_detector(video_path)
         test_auto_editor(video_path)
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎉 All Phase 1 tests passed!")
-        print("="*60)
+        print("=" * 60)
         return 0
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
     finally:
         # 清理
         import shutil
+
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 

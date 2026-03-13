@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class EditStyle(Enum):
     """剪辑风格."""
+
     FAST_PACED = "fast_paced"  # 快节奏 (短视频)
     MODERATE = "moderate"  # 中等节奏
     SLOW = "slow"  # 慢节奏 (纪录片)
@@ -22,6 +23,7 @@ class EditStyle(Enum):
 
 class LayoutType(Enum):
     """布局类型."""
+
     ORIGINAL = "original"  # 原始比例
     VERTICAL = "vertical"  # 竖屏 (9:16)
     SQUARE = "square"  # 方形 (1:1)
@@ -212,11 +214,7 @@ class StrategyGenerator:
         target_duration = intent.target_duration or analysis.duration
 
         # 3. 选择精彩片段
-        selected_segments = self._select_segments(
-            analysis,
-            target_duration,
-            intent
-        )
+        selected_segments = self._select_segments(analysis, target_duration, intent)
 
         # 4. 生成片段规格
         clips = self._generate_clips(selected_segments, intent)
@@ -227,17 +225,14 @@ class StrategyGenerator:
         # 6. 构建策略
         strategy = EditingStrategy(
             target_duration=target_duration,
-            target_aspect_ratio=self.PLATFORM_PRESETS.get(
-                intent.platform, {}
-            ).get("aspect_ratio", (16, 9)),
+            target_aspect_ratio=self.PLATFORM_PRESETS.get(intent.platform, {}).get("aspect_ratio", (16, 9)),
             target_style=intent.style,
             clips=clips,
             text_overlays=text_overlays,
             add_subtitles=intent.add_subtitles,
         )
 
-        logger.info(f"Strategy generated: {len(strategy.clips)} clips, "
-                   f"{strategy.total_duration:.1f}s total")
+        logger.info(f"Strategy generated: {len(strategy.clips)} clips, " f"{strategy.total_duration:.1f}s total")
 
         return strategy
 
@@ -256,10 +251,7 @@ class StrategyGenerator:
 
         # 更新参数
         if intent.target_duration is None and preset["max_duration"]:
-            intent.target_duration = min(
-                preset["max_duration"],
-                60  # 默认 60 秒
-            )
+            intent.target_duration = min(preset["max_duration"], 60)  # 默认 60 秒
 
         if preset.get("style"):
             intent.style = preset["style"]

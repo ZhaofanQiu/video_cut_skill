@@ -12,9 +12,9 @@ from video_cut_skill.auto_editor import AutoEditor, EditConfig
 
 def test9():
     """测试9: 使用 base 模型处理视频."""
-    print("="*60)
+    print("=" * 60)
     print("Test 9 - Whisper base model + subtitle fix")
-    print("="*60)
+    print("=" * 60)
 
     # 使用已有的视频
     video_path = "/tmp/test3_video.mp4"
@@ -42,10 +42,7 @@ def test9():
     editor = AutoEditor()
 
     config = EditConfig(
-        target_duration=30,  # 只处理前30秒
-        add_subtitles=True,
-        whisper_model="base",  # 明确使用 base 模型
-        output_path="/tmp/test9_output.mp4"
+        target_duration=30, add_subtitles=True, whisper_model="base", output_path="/tmp/test9_output.mp4"  # 只处理前30秒  # 明确使用 base 模型
     )
 
     try:
@@ -59,9 +56,10 @@ def test9():
 
         # 复制一份带 .bin 后缀的用于飞书发送
         import shutil
+
         feishu_path = Path("/tmp/test9_output_subtitled.mp4.bin")
         if Path(result.output_path).exists():
-            shutil.copy(result.output_path, str(feishu_path).replace('.bin', ''))
+            shutil.copy(result.output_path, str(feishu_path).replace(".bin", ""))
             # 如果有字幕版本，复制那个
             subtitled = Path(result.output_path).parent / f"{Path(result.output_path).stem}_subtitled{Path(result.output_path).suffix}"
             if subtitled.exists():
@@ -73,8 +71,10 @@ def test9():
     except Exception as e:
         print(f"\n❌ Test 9 failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(test9())

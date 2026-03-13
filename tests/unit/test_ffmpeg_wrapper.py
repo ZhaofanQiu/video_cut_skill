@@ -31,8 +31,7 @@ class TestFFmpegWrapper:
 
     def test_probe_success(self):
         """测试成功获取视频信息."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.probe") as mock_probe:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.probe") as mock_probe:
             mock_run.return_value = Mock(stdout="version", returncode=0)
             mock_probe.return_value = {
                 "streams": [
@@ -50,12 +49,9 @@ class TestFFmpegWrapper:
 
     def test_probe_failure(self):
         """测试获取信息失败."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.probe") as mock_probe:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.probe") as mock_probe:
             mock_run.return_value = Mock(stdout="version", returncode=0)
-            mock_probe.side_effect = ffmpeg.Error(
-                "ffprobe", b"", b"Error: file not found"
-            )
+            mock_probe.side_effect = ffmpeg.Error("ffprobe", b"", b"Error: file not found")
 
             wrapper = FFmpegWrapper()
             with pytest.raises(FFmpegError):
@@ -63,8 +59,7 @@ class TestFFmpegWrapper:
 
     def test_get_video_info(self):
         """测试获取视频信息摘要."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.probe") as mock_probe:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.probe") as mock_probe:
             mock_run.return_value = Mock(stdout="version", returncode=0)
             mock_probe.return_value = {
                 "streams": [
@@ -92,8 +87,7 @@ class TestFFmpegWrapper:
 
     def test_get_video_info_no_video_stream(self):
         """测试没有视频流的情况."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.probe") as mock_probe:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.probe") as mock_probe:
             mock_run.return_value = Mock(stdout="version", returncode=0)
             mock_probe.return_value = {
                 "streams": [{"codec_type": "audio"}],
@@ -110,10 +104,7 @@ class TestFFmpegWrapperCut:
 
     def test_cut_clip_success(self):
         """测试成功剪辑."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.input"), \
-             patch("ffmpeg.output"), \
-             patch("ffmpeg.run") as mock_run_ffmpeg:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.input"), patch("ffmpeg.output"), patch("ffmpeg.run") as mock_run_ffmpeg:
             mock_run.return_value = Mock(stdout="version", returncode=0)
 
             wrapper = FFmpegWrapper()
@@ -129,14 +120,9 @@ class TestFFmpegWrapperCut:
 
     def test_cut_clip_failure(self):
         """测试剪辑失败."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.input"), \
-             patch("ffmpeg.output"), \
-             patch("ffmpeg.run") as mock_run_ffmpeg:
+        with patch("subprocess.run") as mock_run, patch("ffmpeg.input"), patch("ffmpeg.output"), patch("ffmpeg.run") as mock_run_ffmpeg:
             mock_run.return_value = Mock(stdout="version", returncode=0)
-            mock_run_ffmpeg.side_effect = ffmpeg.Error(
-                "ffmpeg", b"", b"Error: invalid input"
-            )
+            mock_run_ffmpeg.side_effect = ffmpeg.Error("ffmpeg", b"", b"Error: invalid input")
 
             wrapper = FFmpegWrapper()
             with pytest.raises(FFmpegError):
@@ -157,11 +143,13 @@ class TestFFmpegWrapperConcatenate:
 
     def test_concatenate_clips_success(self):
         """测试成功拼接."""
-        with patch("subprocess.run") as mock_run, \
-             patch("ffmpeg.input"), \
-             patch("ffmpeg.output"), \
-             patch("ffmpeg.run"), \
-             patch("tempfile.NamedTemporaryFile") as mock_temp:
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("ffmpeg.input"),
+            patch("ffmpeg.output"),
+            patch("ffmpeg.run"),
+            patch("tempfile.NamedTemporaryFile") as mock_temp,
+        ):
             mock_run.return_value = Mock(stdout="version", returncode=0)
             mock_temp.return_value.__enter__.return_value = Mock(
                 name="temp.txt",

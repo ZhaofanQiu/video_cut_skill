@@ -121,11 +121,7 @@ class MotionGraphicsRenderer:
             time = i / spec.fps
 
             # 创建空白画布
-            img = Image.new(
-                "RGB",
-                (spec.width, spec.height),
-                spec.background_color or "#000000"
-            )
+            img = Image.new("RGB", (spec.width, spec.height), spec.background_color or "#000000")
 
             # TODO: 绘制可见元素
             for element in spec.elements:
@@ -194,11 +190,16 @@ class MotionGraphicsRenderer:
         cmd = [
             self.ffmpeg_path,
             "-y",
-            "-framerate", str(fps),
-            "-i", f"{frame_dir}/frame_%05d.png",
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-t", str(duration),
+            "-framerate",
+            str(fps),
+            "-i",
+            f"{frame_dir}/frame_%05d.png",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-t",
+            str(duration),
             str(output_path),
         ]
 

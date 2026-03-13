@@ -12,6 +12,7 @@ from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
 @dataclass
 class EditConfig:
     """编辑配置."""
+
     target_duration: Optional[float] = None
     aspect_ratio: str = "original"
     add_subtitles: bool = True
@@ -22,6 +23,7 @@ class EditConfig:
 @dataclass
 class EditResult:
     """编辑结果."""
+
     output_path: Path
     transcript: Optional[TranscriptResult] = None
     scenes: Optional[SceneDetectionResult] = None
@@ -111,7 +113,7 @@ class AutoEditor:
             output_path = video_path.parent / f"{video_path.stem}_processed{video_path.suffix}"
 
         # 5. 如果指定了目标时长，进行剪辑
-        if config.target_duration and config.target_duration < info['duration']:
+        if config.target_duration and config.target_duration < info["duration"]:
             print(f"\n4️⃣  Cutting to {config.target_duration}s...")
             self.ffmpeg.cut_clip(
                 video_path,
@@ -122,6 +124,7 @@ class AutoEditor:
         else:
             # 复制原文件
             import shutil
+
             shutil.copy(video_path, output_path)
 
         # 6. 添加字幕（如果有）
@@ -248,6 +251,7 @@ class AutoEditor:
             self.ffmpeg.concatenate_clips(clips, output_path)
         else:
             import shutil
+
             shutil.copy(clips[0], output_path)
 
         print(f"✅ Highlights saved: {output_path}")

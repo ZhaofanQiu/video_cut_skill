@@ -79,10 +79,7 @@ class Transcriber:
             download_root: 模型下载目录
         """
         if model_size not in self.MODEL_SIZES:
-            raise ValueError(
-                f"Invalid model size: {model_size}. "
-                f"Choose from: {list(self.MODEL_SIZES.keys())}"
-            )
+            raise ValueError(f"Invalid model size: {model_size}. " f"Choose from: {list(self.MODEL_SIZES.keys())}")
 
         self.model_size = model_size
         self.device = device or ("cuda" if whisper.torch.cuda.is_available() else "cpu")
@@ -141,10 +138,7 @@ class Transcriber:
             for seg_data in result.get("segments", []):
                 words = seg_data.get("words")
                 if words:
-                    words = [
-                        {"word": w["word"], "start": w["start"], "end": w["end"]}
-                        for w in words
-                    ]
+                    words = [{"word": w["word"], "start": w["start"], "end": w["end"]} for w in words]
 
                 segments.append(
                     TranscriptSegment(
@@ -162,10 +156,7 @@ class Transcriber:
                 duration=segments[-1].end if segments else 0,
             )
 
-            logger.info(
-                f"Transcription complete: {len(segments)} segments, "
-                f"language: {transcript.language}"
-            )
+            logger.info(f"Transcription complete: {len(segments)} segments, " f"language: {transcript.language}")
             return transcript
 
         except Exception as e:
@@ -285,7 +276,9 @@ class Transcriber:
 
             # 写入样式
             f.write("[V4+ Styles]\n")
-            f.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
+            f.write(
+                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+            )
             f.write(
                 f"Style: Default,{style['font']},{style['fontsize']},{style['color']},\u0026H000000FF,{style['outline_color']},\u0026H00000000,0,0,0,0,100,100,0,0,1,{style['outline']},0,{style['alignment']},10,10,10,1\n"
             )
@@ -325,13 +318,15 @@ class Transcriber:
         for keyword in keywords:
             matches = transcript.search_text(keyword)
             for match in matches:
-                results.append({
-                    "keyword": keyword,
-                    "start": max(0, match.start - context_seconds),
-                    "end": match.end + context_seconds,
-                    "text": match.text,
-                    "segment": match,
-                })
+                results.append(
+                    {
+                        "keyword": keyword,
+                        "start": max(0, match.start - context_seconds),
+                        "end": match.end + context_seconds,
+                        "text": match.text,
+                        "segment": match,
+                    }
+                )
 
         # 按时间排序
         results.sort(key=lambda x: x["start"])

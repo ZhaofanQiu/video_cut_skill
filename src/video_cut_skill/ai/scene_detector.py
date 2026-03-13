@@ -76,10 +76,7 @@ class SceneDetector:
             detector_type: 检测器类型 (content/threshold/adaptive)
         """
         if detector_type not in self.DETECTOR_TYPES:
-            raise ValueError(
-                f"Invalid detector type: {detector_type}. "
-                f"Choose from: {list(self.DETECTOR_TYPES.keys())}"
-            )
+            raise ValueError(f"Invalid detector type: {detector_type}. " f"Choose from: {list(self.DETECTOR_TYPES.keys())}")
 
         self.detector_type = detector_type
         self._detector_class = self.DETECTOR_TYPES[detector_type]
@@ -196,8 +193,7 @@ class SceneDetector:
             # 收集输出文件
             video_name = Path(video_path).stem
             output_files = [
-                output_dir / output_file_template.replace("$VIDEO_NAME", video_name).replace("$SCENE_NUMBER", str(i + 1))
-                for i in range(len(scenes))
+                output_dir / output_file_template.replace("$VIDEO_NAME", video_name).replace("$SCENE_NUMBER", str(i + 1)) for i in range(len(scenes))
             ]
 
             logger.info(f"Video split into {len(output_files)} scenes")
