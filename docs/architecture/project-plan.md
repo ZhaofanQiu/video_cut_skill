@@ -53,6 +53,10 @@ Video Cut Skill 是一个面向 AI Agent 的智能视频剪辑工具，提供从
 - [ ] 精彩片段提取算法
 - [ ] 剪辑策略生成器
 - [ ] 布局决策系统
+- [ ] **语音识别增强** - 支持多引擎切换
+  - Whisper large模型（本地高精度）
+  - Google Gemini Audio API（云端，需token）
+  - Google Cloud Speech-to-Text（云端，需token）
 
 #### 2.6 Motion Graphics
 - [ ] 动态文字系统
@@ -65,6 +69,7 @@ Video Cut Skill 是一个面向 AI Agent 的智能视频剪辑工具，提供从
 - [ ] 人脸追踪裁剪
 - [ ] 多画面网格布局
 - [ ] 安全区域检测
+- [ ] **AI智能裁剪** - 基于目标检测自动选择有价值区域
 
 #### 2.8 转场效果
 - [ ] 淡入淡出

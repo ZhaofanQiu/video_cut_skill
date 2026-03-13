@@ -113,6 +113,11 @@ class ContentAnalysis:
     # 视觉特征
     visual_features: Optional[VisualFeatures] = None
     
+    @property
+    def highlights(self) -> List[ContentSegment]:
+        """精彩片段列表 (highlight_candidates 的别名)."""
+        return self.highlight_candidates
+    
     def get_segment_at_time(self, time: float) -> Optional[ContentSegment]:
         """获取指定时间的内容片段."""
         for segment in self.segments:
@@ -202,7 +207,7 @@ class ContentAnalyzer:
         audio_features = None
         if extract_audio_features:
             logger.info("Extracting audio features...")
-            audio_features = self._extract_audio_features(video_path)
+            audio_features = self._extract_audio_features(video_path, transcript)
         
         # 7. 提取视觉特征
         visual_features = None
@@ -354,19 +359,117 @@ class ContentAnalyzer:
         top_count = max(1, len(sorted_segments) // 5)
         return sorted_segments[:top_count]
     
-    def _extract_audio_features(self, video_path: Path) -> AudioFeatures:
+    def _extract_audio_features(
+        self, 
+        video_path: Path,
+        transcript: Optional[TranscriptResult] = None
+    ) -> AudioFeatures:
         """提取音频特征.
         
         Args:
             video_path: 视频路径
+            transcript: 转录结果（用于计算语速）
             
         Returns:
             音频特征
         """
-        # TODO: 实现音频特征提取
-        # 使用 pydub 或 librosa 分析音频
+        import subprocess
+        import re
         
-        return AudioFeatures()
+        try:
+            # 使用 FFmpeg 分析音频音量
+            # 1. 获取音频的音量统计信息
+            cmd = [
+                "ffmpeg",
+                "-i", str(video_path),
+                "-af", "volumedetect",
+                "-vn",  # 禁用视频
+                "-sn",  # 禁用字幕
+                "-dn",  # 禁用数据流
+                "-f", "null",
+                "-"
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            output = result.stderr  # FFmpeg 输出到 stderr
+            
+            mean_volume = 0.0
+            max_volume = 0.0
+            
+            # 解析音量信息
+            mean_match = re.search(r"mean_volume:\s+(-?\d+\.?\d*)\s+dB", output)
+            max_match = re.search(r"max_volume:\s+(-?\d+\.?\d*)\s+dB", output)
+            
+            if mean_match:
+                mean_volume = float(mean_match.group(1))
+            if max_match:
+                max_volume = float(max_match.group(1))
+            
+            # 2. 检测静音片段
+            silent_segments = []
+            try:
+                silence_cmd = [
+                    "ffmpeg",
+                    "-i", str(video_path),
+                    "-af", "silencedetect=noise=-50dB:d=0.5",  # -50dB 阈值，0.5秒以上
+                    "-vn",
+                    "-sn",
+                    "-dn",
+                    "-f", "null",
+                    "-"
+                ]
+                
+                silence_result = subprocess.run(
+                    silence_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                
+                silence_output = silence_result.stderr
+                
+                # 解析静音开始和结束时间
+                starts = re.findall(r"silence_start:\s+([\d\.]+)", silence_output)
+                ends = re.findall(r"silence_end:\s+([\d\.]+)", silence_output)
+                
+                for start, end in zip(starts, ends):
+                    silent_segments.append((float(start), float(end)))
+                    
+            except Exception as e:
+                logger.warning(f"Failed to detect silence: {e}")
+            
+            # 3. 计算语速 (基于转录结果)
+            speech_rate = 0.0
+            if transcript and transcript.segments:
+                total_words = sum(
+                    len(seg.text.split()) 
+                    for seg in transcript.segments
+                )
+                total_duration = sum(
+                    seg.end - seg.start
+                    for seg in transcript.segments
+                )
+                
+                if total_duration > 0:
+                    # words per minute
+                    speech_rate = (total_words / total_duration) * 60
+            
+            return AudioFeatures(
+                mean_volume=mean_volume,
+                max_volume=max_volume,
+                silent_segments=silent_segments,
+                speech_rate=speech_rate,
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract audio features: {e}")
+            return AudioFeatures()
     
     def _extract_visual_features(self, video_path: Path) -> VisualFeatures:
         """提取视觉特征.
