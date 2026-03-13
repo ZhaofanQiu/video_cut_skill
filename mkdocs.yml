@@ -1,0 +1,62 @@
+site_name: Video Cut Skill
+site_description: Intelligent video editing for AI agents
+site_url: https://zhaofanqiu.github.io/video_cut_skill
+repo_url: https://github.com/ZhaofanQiu/video_cut_skill
+repo_name: video_cut_skill
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - API Reference:
+      - Overview: api/index.md
+      - Core: api/core.md
+      - AI: api/ai.md
+      - Motion Graphics: api/motion_graphics.md
+  - Tutorials:
+      - Basic Editing: tutorials/basic-editing.md
+      - Auto Edit: tutorials/auto-edit.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Architecture: development/architecture.md
+      - Research: research/github-research.md
+      - Features: research/feature-brainstorm.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ZhaofanQiu
