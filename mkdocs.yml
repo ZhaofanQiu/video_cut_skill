@@ -47,7 +47,7 @@ nav:
       - Overview: api/index.md
   - Development:
       - Phase 1 Log: development/phase1-log.md
-      - Contributing: CONTRIBUTING.md
+      - Contributing: development/contributing.md
   - Research:
       - GitHub Research: research/github-research.md
       - Feature Brainstorm: research/feature-brainstorm.md
