@@ -39,22 +39,19 @@ plugins:
 
 nav:
   - Home: index.md
-  - Quick Start: quickstart.md
-  - Installation: installation.md
-  - Configuration: configuration.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quickstart.md
+      - Testing Guide: testing-guide.md
   - API Reference:
       - Overview: api/index.md
-      - Core: api/core.md
-      - AI: api/ai.md
-      - Motion Graphics: api/motion_graphics.md
-  - Tutorials:
-      - Basic Editing: tutorials/basic-editing.md
-      - Auto Edit: tutorials/auto-edit.md
   - Development:
-      - Contributing: development/contributing.md
-      - Architecture: development/architecture.md
-      - Research: research/github-research.md
-      - Features: research/feature-brainstorm.md
+      - Phase 1 Log: development/phase1-log.md
+      - Contributing: CONTRIBUTING.md
+  - Research:
+      - GitHub Research: research/github-research.md
+      - Feature Brainstorm: research/feature-brainstorm.md
+      - Project Plan: architecture/project-plan.md
 
 extra:
   social:

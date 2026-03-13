@@ -151,7 +151,7 @@ detector.split_video(
 
 ## API Documentation
 
-See [API Reference](api/index.md) for detailed documentation.
+See [API Reference](../api/index.md) for detailed documentation.
 
 ## Next Steps
 
