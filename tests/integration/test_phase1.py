@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 def create_test_video(output_path: str, duration: int = 10):
     """创建测试视频."""
@@ -27,6 +29,17 @@ def create_test_video(output_path: str, duration: int = 10):
     print(f"✅ Test video created: {output_path}")
 
 
+@pytest.fixture(scope="module")
+def video_path():
+    """创建测试视频 fixture."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        video_file = f"{tmp_dir}/test_video.mp4"
+        create_test_video(video_file, duration=10)
+        yield video_file
+
+
+@pytest.mark.integration
+@pytest.mark.slow
 def test_ffmpeg_wrapper(video_path: str):
     """测试 FFmpeg Wrapper."""
     print("\n" + "=" * 60)
@@ -75,6 +88,8 @@ def test_ffmpeg_wrapper(video_path: str):
     print("\n✅ FFmpeg Wrapper tests passed!")
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 def test_transcriber(video_path: str):
     """测试语音识别 (使用 base 模型)."""
     print("\n" + "=" * 60)
@@ -102,6 +117,8 @@ def test_transcriber(video_path: str):
     print("\n✅ Transcriber tests passed!")
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 def test_scene_detector(video_path: str):
     """测试场景检测."""
     print("\n" + "=" * 60)
@@ -128,6 +145,8 @@ def test_scene_detector(video_path: str):
     print("\n✅ Scene Detector tests passed!")
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 def test_auto_editor(video_path: str):
     """测试 AutoEditor."""
     print("\n" + "=" * 60)
@@ -139,7 +158,12 @@ def test_auto_editor(video_path: str):
     editor = AutoEditor()
 
     print("\n1. Testing process_video()...")
-    config = EditConfig(target_duration=5.0, aspect_ratio="original", add_subtitles=True, output_path="/tmp/test_output.mp4")
+    config = EditConfig(
+        target_duration=5.0,
+        aspect_ratio="original",
+        add_subtitles=True,
+        output_path="/tmp/test_output.mp4",
+    )
     result = editor.process_video(video_path, config)
     assert result.output_path.exists(), "Output file should exist"
     print(f"   ✅ Video processed: {result.output_path}")
@@ -150,47 +174,3 @@ def test_auto_editor(video_path: str):
         print(f"   - Scenes: {result.scenes.scene_count}")
 
     print("\n✅ AutoEditor tests passed!")
-
-
-def main():
-    """主函数."""
-    print("=" * 60)
-    print("Video Cut Skill - Phase 1 Integration Test")
-    print("=" * 60)
-
-    # 创建临时目录
-    temp_dir = tempfile.mkdtemp()
-    video_path = f"{temp_dir}/test_video.mp4"
-
-    try:
-        # 创建测试视频
-        print("\nCreating test video (10 seconds)...")
-        create_test_video(video_path, duration=10)
-
-        # 运行测试
-        test_ffmpeg_wrapper(video_path)
-        test_transcriber(video_path)
-        test_scene_detector(video_path)
-        test_auto_editor(video_path)
-
-        print("\n" + "=" * 60)
-        print("🎉 All Phase 1 tests passed!")
-        print("=" * 60)
-        return 0
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return 1
-
-    finally:
-        # 清理
-        import shutil
-
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-if __name__ == "__main__":
-    exit(main())

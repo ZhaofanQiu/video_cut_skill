@@ -4,6 +4,8 @@
 import subprocess
 import tempfile
 
+import pytest
+
 
 def create_test_video(output_path: str, duration: int = 10):
     """创建测试视频."""
@@ -26,6 +28,16 @@ def create_test_video(output_path: str, duration: int = 10):
     print(f"✅ Test video created: {output_path}")
 
 
+@pytest.fixture(scope="module")
+def video_path():
+    """创建测试视频 fixture."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        video_file = f"{tmp_dir}/test_video.mp4"
+        create_test_video(video_file, duration=10)
+        yield video_file
+
+
+@pytest.mark.integration
 def test_easing_functions():
     """测试缓动函数."""
     print("\n" + "=" * 60)
@@ -53,6 +65,7 @@ def test_easing_functions():
     print("\n✅ Easing functions tests passed!")
 
 
+@pytest.mark.integration
 def test_text_elements():
     """测试文字元素."""
     print("\n" + "=" * 60)
@@ -85,6 +98,7 @@ def test_text_elements():
     print("\n✅ Text element tests passed!")
 
 
+@pytest.mark.integration
 def test_shape_elements():
     """测试形状元素."""
     print("\n" + "=" * 60)
@@ -104,6 +118,8 @@ def test_shape_elements():
     print("\n✅ Shape element tests passed!")
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 def test_content_analyzer(video_path: str):
     """测试内容分析器."""
     print("\n" + "=" * 60)
@@ -130,6 +146,8 @@ def test_content_analyzer(video_path: str):
     print("\n✅ Content analyzer tests passed!")
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 def test_strategy_generator(video_path: str):
     """测试策略生成器."""
     print("\n" + "=" * 60)
@@ -168,52 +186,3 @@ def test_strategy_generator(video_path: str):
     print(f"      Target style: {strategy.target_style.value}")
 
     print("\n✅ Strategy generator tests passed!")
-
-
-def main():
-    """主函数."""
-    print("=" * 60)
-    print("Video Cut Skill - Phase 2 Integration Test")
-    print("=" * 60)
-
-    # 创建临时目录
-    temp_dir = tempfile.mkdtemp()
-    video_path = f"{temp_dir}/test_video.mp4"
-
-    try:
-        # 测试 Motion Graphics
-        test_easing_functions()
-        test_text_elements()
-        test_shape_elements()
-
-        # 创建测试视频
-        print("\n" + "=" * 60)
-        print("Creating test video...")
-        print("=" * 60)
-        create_test_video(video_path, duration=10)
-
-        # 测试 AI 模块
-        test_content_analyzer(video_path)
-        test_strategy_generator(video_path)
-
-        print("\n" + "=" * 60)
-        print("🎉 All Phase 2 tests passed!")
-        print("=" * 60)
-        return 0
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return 1
-
-    finally:
-        # 清理
-        import shutil
-
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-if __name__ == "__main__":
-    exit(main())
