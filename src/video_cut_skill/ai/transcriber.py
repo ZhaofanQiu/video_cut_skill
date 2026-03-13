@@ -329,5 +329,5 @@ class Transcriber:
                 )
 
         # 按时间排序
-        results.sort(key=lambda x: x["start"])
+        results.sort(key=lambda x: float(x["start"]))  # type: ignore[arg-type,return-value]
         return results

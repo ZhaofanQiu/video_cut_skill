@@ -62,7 +62,7 @@ class ShapeElement:
     params: dict
 
     # 样式
-    style: ShapeStyle = None
+    style: Optional[ShapeStyle] = None
 
     # 显示时间
     start_time: float = 0.0
@@ -173,6 +173,8 @@ class ShapeElement:
             SVG 元素字符串
         """
         style = self.style
+        if style is None:
+            style = ShapeStyle()  # type: ignore[assignment]
 
         # 构建样式字符串
         styles = []

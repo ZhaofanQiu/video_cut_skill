@@ -128,7 +128,7 @@ class AutoEditor:
             shutil.copy(video_path, output_path)
 
         # 6. 添加字幕（如果有）
-        if transcript and config.add_subtitles:
+        if transcript and config.add_subtitles and self.transcriber:
             print("\n5️⃣  Adding subtitles...")
             srt_path = output_path.parent / f"{output_path.stem}.srt"
             self.transcriber.export_srt(transcript, srt_path)
@@ -248,7 +248,9 @@ class AutoEditor:
 
         # 拼接片段
         if len(clips) > 1:
-            self.ffmpeg.concatenate_clips(clips, output_path)
+            # Convert list[Path] to list[str] for type compatibility
+            clip_paths = [str(c) for c in clips]
+            self.ffmpeg.concatenate_clips(clip_paths, output_path)  # type: ignore[arg-type]
         else:
             import shutil
 

@@ -30,7 +30,7 @@ class MGSpec:
     background_color: Optional[str] = None
 
     # 元素列表
-    elements: List[Union[TextElement, ShapeElement]] = None
+    elements: Optional[List[Union[TextElement, ShapeElement]]] = None
 
     def __post_init__(self):
         """初始化默认值."""
@@ -124,7 +124,8 @@ class MotionGraphicsRenderer:
             img = Image.new("RGB", (spec.width, spec.height), spec.background_color or "#000000")
 
             # TODO: 绘制可见元素
-            for element in spec.elements:
+            elements = spec.elements or []
+            for element in elements:
                 if element.is_visible_at(time):
                     self._draw_element(img, element, time)
 
@@ -155,10 +156,15 @@ class MotionGraphicsRenderer:
             x, y = element.position
             text = element.text
             style = element.style
+            if style is None:
+                from video_cut_skill.motion_graphics.elements.text import TextStyle
+                style = TextStyle()  # type: ignore[assignment]
 
             # 尝试加载字体
             try:
-                font = ImageFont.truetype(style.font_family, style.font_size)
+                font: Union[ImageFont.FreeTypeFont, ImageFont.ImageFont] = ImageFont.truetype(
+                    style.font_family, style.font_size
+                )
             except Exception:
                 font = ImageFont.load_default()
 

@@ -341,7 +341,8 @@ class EasingFunction:
         """
         # 确保输入在 [0, 1] 范围内
         t = max(0.0, min(1.0, t))
-        return self._func(t)
+        result: float = self._func(t)  # type: ignore[operator]
+        return result
 
     def apply_range(
         self,

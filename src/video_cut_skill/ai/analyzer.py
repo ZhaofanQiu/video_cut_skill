@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from video_cut_skill.ai.scene_detector import SceneDetectionResult, SceneDetector
 from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult
@@ -386,7 +386,7 @@ class ContentAnalyzer:
         }
 
         words = full_text.lower().split()
-        word_freq = {}
+        word_freq: Dict[str, int] = {}
 
         for word in words:
             word = word.strip(".,!?;:\"'")

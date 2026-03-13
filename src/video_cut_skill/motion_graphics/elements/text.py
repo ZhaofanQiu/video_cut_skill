@@ -104,7 +104,7 @@ class TextElement:
     position: Tuple[int, int] = (0, 0)
 
     # 样式
-    style: TextStyle = None
+    style: Optional[TextStyle] = None
 
     # 入场动画
     entry_animation: Optional[TextAnimationConfig] = None
@@ -162,6 +162,8 @@ class TextElement:
             ASS 样式字符串
         """
         style = self.style
+        if style is None:
+            style = TextStyle()  # type: ignore[assignment]
 
         # 转换颜色格式 (RGB -> BGR for ASS)
         def convert_color(hex_color: str) -> str:

@@ -223,9 +223,11 @@ class StrategyGenerator:
         text_overlays = self._generate_text_overlays(clips, intent)
 
         # 6. 构建策略
+        platform_preset = self.PLATFORM_PRESETS.get(intent.platform, {})
+        aspect_ratio = platform_preset.get("aspect_ratio", (16, 9)) if isinstance(platform_preset, dict) else (16, 9)
         strategy = EditingStrategy(
             target_duration=target_duration,
-            target_aspect_ratio=self.PLATFORM_PRESETS.get(intent.platform, {}).get("aspect_ratio", (16, 9)),
+            target_aspect_ratio=aspect_ratio,
             target_style=intent.style,
             clips=clips,
             text_overlays=text_overlays,
@@ -246,15 +248,17 @@ class StrategyGenerator:
             更新后的意图
         """
         preset = self.PLATFORM_PRESETS.get(intent.platform.lower())
-        if not preset:
+        if not preset or not isinstance(preset, dict):
             return intent
 
         # 更新参数
-        if intent.target_duration is None and preset["max_duration"]:
-            intent.target_duration = min(preset["max_duration"], 60)  # 默认 60 秒
+        max_duration = preset.get("max_duration")
+        if intent.target_duration is None and max_duration:
+            intent.target_duration = min(max_duration, 60)  # 默认 60 秒
 
-        if preset.get("style"):
-            intent.style = preset["style"]
+        style = preset.get("style")
+        if style:
+            intent.style = style
 
         return intent
 
@@ -305,7 +309,7 @@ class StrategyGenerator:
 
         # 累积选择直到达到目标时长
         selected = []
-        total_duration = 0
+        total_duration: float = 0.0
 
         for segment in candidates:
             if total_duration >= target_duration:
