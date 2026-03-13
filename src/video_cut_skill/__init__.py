@@ -1,5 +1,6 @@
 """Video Cut Skill - Intelligent video editing for AI agents."""
 
+# Audio
 # Core
 from video_cut_skill.ai.analyzer import ContentAnalysis, ContentAnalyzer
 from video_cut_skill.ai.scene_detector import SceneDetector
@@ -9,9 +10,8 @@ from video_cut_skill.ai.strategy import (
     EditStyle,
     StrategyGenerator,
 )
-
-# AI
 from video_cut_skill.ai.transcriber import Transcriber
+from video_cut_skill.audio import AudioAnalyzer, AudioEnhancer
 
 # AutoEditor
 from video_cut_skill.auto_editor import AutoEditor, EditConfig
@@ -34,7 +34,16 @@ from video_cut_skill.motion_graphics import (
     TextStyle,
 )
 
-__version__ = "0.2.0"
+# Utils
+from video_cut_skill.utils import (
+    CachedSceneDetector,
+    CachedTranscriber,
+    CacheManager,
+    HardwareInfo,
+    get_optimal_device,
+)
+
+__version__ = "0.3.0"
 __all__ = [
     # Core
     "FFmpegWrapper",
@@ -67,4 +76,13 @@ __all__ = [
     "ShapeStyle",
     "MotionGraphicsRenderer",
     "MGSpec",
+    # Audio
+    "AudioEnhancer",
+    "AudioAnalyzer",
+    # Utils
+    "CacheManager",
+    "CachedTranscriber",
+    "CachedSceneDetector",
+    "HardwareInfo",
+    "get_optimal_device",
 ]
