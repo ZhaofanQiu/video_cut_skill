@@ -85,6 +85,7 @@ def setup_structured_logging(
     handler = logging.StreamHandler(stream)
     handler.setLevel(level)
 
+    formatter: logging.Formatter
     if use_json:
         formatter = JSONFormatter()
     else:

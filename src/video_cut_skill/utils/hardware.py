@@ -1,7 +1,7 @@
 """Hardware detection utilities - 硬件检测工具."""
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class HardwareInfo:
         """
         cuda_available = cls.check_cuda()
 
-        info = {
+        info: Dict[str, Any] = {
             "cuda_available": cuda_available,
             "device": "cuda" if cuda_available else "cpu",
         }
