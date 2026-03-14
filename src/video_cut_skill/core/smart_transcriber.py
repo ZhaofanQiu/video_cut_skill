@@ -263,13 +263,15 @@ class SmartTranscriber:
             "  - 腾讯云语音识别"
         )
     
-    def get_available_models(self) -> list:
+    def get_available_models(self) -> List[ModelSize]:
         """获取当前环境可用的模型列表"""
         return [m for m in ModelSize if self.MODEL_CONFIG.get(m, {}).get('available', False)]
     
     def check_model_availability(self, model: ModelSize) -> bool:
         """检查指定模型是否可用"""
-        return self.MODEL_CONFIG.get(model, {}).get('available', False)
+        config = self.MODEL_CONFIG.get(model, {})
+        available = config.get('available', False)
+        return bool(available)
 
 
 # 使用示例

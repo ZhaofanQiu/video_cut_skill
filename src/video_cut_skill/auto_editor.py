@@ -3,7 +3,7 @@
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from video_cut_skill.ai.scene_detector import SceneDetectionResult, SceneDetector
 from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult
@@ -84,17 +84,23 @@ class AutoEditor:
         self.work_dir.mkdir(parents=True, exist_ok=True)
 
         # 根据模式初始化转录器
+        self.transcriber: Optional[Union[Transcriber, SmartTranscriber]]
+        self._smart_transcriber: Optional[SmartTranscriber] = None
+        
         if transcriber:
             self.transcriber = transcriber
+            if isinstance(transcriber, SmartTranscriber):
+                self._smart_transcriber = transcriber
         elif use_smart_transcriber:
             self.transcriber = SmartTranscriber()
-            self._smart_transcriber = self.transcriber  # 类型提示辅助
+            self._smart_transcriber = self.transcriber
         else:
             self.transcriber = None  # 懒加载
-            self._smart_transcriber = None
 
         # 场景检测器（仅基础模式）
-        self.scene_detector = scene_detector or SceneDetector() if not use_smart_transcriber else None
+        self.scene_detector: Optional[SceneDetector] = None
+        if not use_smart_transcriber:
+            self.scene_detector = scene_detector or SceneDetector()
 
     def _check_audio(self, video_path: str) -> bool:
         """检查视频是否有音频流."""
@@ -125,35 +131,40 @@ class AutoEditor:
             else:
                 model = ModelSize(config.whisper_model)
 
-            result = self._smart_transcriber.transcribe(
+            smart_result = self._smart_transcriber.transcribe(
                 video_path,
                 model=model,
                 is_output=False,
             )
 
-            if result.error:
-                return False, None, f"转录失败: {result.error}"
+            if smart_result.error:
+                return False, None, f"转录失败: {smart_result.error}"
 
             transcript_dict = {
-                "text": result.text,
-                "segments": result.segments,
-                "language": result.language,
-                "model_used": result.model_used,
+                "text": smart_result.text,
+                "segments": smart_result.segments,
+                "language": smart_result.language,
+                "model_used": smart_result.model_used,
             }
             return True, transcript_dict, None
         else:
             # 基础模式：使用标准 Transcriber
             if self.transcriber is None:
                 self.transcriber = Transcriber(model_size=config.whisper_model)
+            
+            # 确保是基础模式下的 Transcriber
+            transcriber = self.transcriber
+            if not isinstance(transcriber, Transcriber):
+                raise RuntimeError("基础模式下应使用 Transcriber")
 
-            result = self.transcriber.transcribe(Path(video_path))
+            basic_result = transcriber.transcribe(Path(video_path))
             transcript_dict = {
-                "text": " ".join([s.text for s in result.segments]),
+                "text": " ".join([s.text for s in basic_result.segments]),
                 "segments": [
                     {"start": s.start, "end": s.end, "text": s.text}
-                    for s in result.segments
+                    for s in basic_result.segments
                 ],
-                "language": result.language,
+                "language": basic_result.language,
                 "model_used": config.whisper_model,
             }
             return True, transcript_dict, None
@@ -208,15 +219,15 @@ class AutoEditor:
             )
 
         # 3. 语音识别
-        transcript = None
+        transcript: Optional[Dict[str, Any]] = None
         if config.add_subtitles or config.highlight_keywords:
             print("\n3️⃣  语音识别...")
             success, transcript, error = self._transcribe(str(video_path), config)
-            if not success:
+            if not success or transcript is None:
                 return EditResult(
                     output_path=video_path,
                     duration=duration,
-                    error=error,
+                    error=error or "转录失败",
                 )
             print(f"   ✓ 转录完成")
             print(f"     模型: {transcript.get('model_used', 'unknown')}")
@@ -308,6 +319,10 @@ class AutoEditor:
         if self.use_smart_transcriber:
             raise RuntimeError("cut_by_scenes 仅在基础模式下可用 (use_smart_transcriber=False)")
 
+        # 确保 scene_detector 已初始化（在基础模式下应该已初始化）
+        if self.scene_detector is None:
+            raise RuntimeError("场景检测器未初始化")
+
         video_path = Path(video_path)
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -396,7 +411,7 @@ class AutoEditor:
 
         # 拼接片段
         if len(clips) > 1:
-            clip_paths = [str(c) for c in clips]
+            clip_paths: List[Union[str, Path]] = [str(c) for c in clips]
             self.ffmpeg.concatenate_clips(clip_paths, final_path)
         else:
             import shutil
