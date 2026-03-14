@@ -70,11 +70,11 @@ python scripts/download_models.py --list
 ```python
 from video_cut_skill import AutoEditor, EditConfig
 
-# 智能模式（推荐）：动态模型选择、音频检测
-editor = AutoEditor(use_smart_transcriber=True)
+# 音频分析模式（默认，适合访谈、教学、播客）
+editor = AutoEditor(analysis_mode="audio")
 
-# 基础模式：场景检测、固定模型
-# editor = AutoEditor(use_smart_transcriber=False)
+# 视觉分析模式（适合电影、MV、场景化内容）
+# editor = AutoEditor(analysis_mode="visual")
 
 # 处理视频
 result = editor.process_video(
@@ -92,13 +92,13 @@ print(f"Output: {result.output_path}")
 print(f"Processing time: {result.processing_time:.1f}s")
 ```
 
-### 按场景切割（仅基础模式）
+### 按场景切割（仅视觉分析模式）
 
 ```python
 from video_cut_skill import AutoEditor
 
-# 基础模式支持场景检测
-editor = AutoEditor(use_smart_transcriber=False)
+# 视觉分析模式支持场景检测
+editor = AutoEditor(analysis_mode="visual")
 
 clips = editor.cut_by_scenes(
     "input.mp4",

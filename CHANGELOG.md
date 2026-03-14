@@ -8,29 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Unified `AutoEditor` class supporting both smart and basic modes via `use_smart_transcriber` flag
-- Type hints improved across the codebase (mypy now passes with no errors)
-- Code review report (`docs/CODE_REVIEW_REPORT.md`)
+- **New API**: `analysis_mode` parameter replaces `use_smart_transcriber`
+  - `"audio"` (default): Audio analysis mode - speech recognition, dynamic model selection
+  - `"visual"`: Visual analysis mode - scene detection, shot segmentation
+  - Backward compatibility: `use_smart_transcriber` still works with deprecation warning
+- Hybrid mode planned for future release (combining both audio and visual analysis)
 
 ### Changed
-- **BREAKING**: Merged `auto_editor.py` and `auto_editor_enhanced.py` into single `AutoEditor` class
-  - Use `AutoEditor(use_smart_transcriber=True)` for smart transcription with dynamic model selection
-  - Use `AutoEditor(use_smart_transcriber=False)` for basic mode with scene detection
-- Renamed integration test files for clarity:
-  - `test9.py` → `test_end_to_end.py`
-  - `test_phase1.py` → `test_whisper_base.py`
-  - `test_phase2.py` → `test_smart_transcribe.py`
+- **BREAKING**: `AutoEditor(use_smart_transcriber=...)` → `AutoEditor(analysis_mode="audio"/"visual")`
+  - Clear naming reflects actual capabilities
+  - Audio mode: SmartTranscriber for speech-based content
+  - Visual mode: SceneDetector for visual-based content
 
-### Removed
-- Redundant documentation files:
-  - `docs/quickstart.md` (content merged into README)
-  - `docs/installation.md` (content merged into README)
-  - `docs/development/phase1-log.md` (archived)
-  - `docs/development/phase2-log.md` (archived)
-  - `docs/testing/test9-summary.md` (superseded by TEST_REPORT.md)
-
-### Security
-- Fixed potential command injection vulnerabilities by removing all `shell=True` from subprocess calls in `smart_transcriber.py`
+### Deprecated
+- `use_smart_transcriber` parameter - use `analysis_mode` instead
 
 ## [0.3.1] - 2026-03-14
 

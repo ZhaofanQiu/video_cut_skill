@@ -29,7 +29,6 @@ class TestEditConfig:
         assert config.whisper_model == "base"
         assert config.highlight_keywords == []
         assert config.context_seconds == 2.0
-        assert config.use_smart_transcriber is True
 
     def test_custom_initialization(self):
         """Test custom values."""
@@ -41,7 +40,7 @@ class TestEditConfig:
             whisper_model="small",
             highlight_keywords=["test", "highlight"],
             context_seconds=3.0,
-            use_smart_transcriber=False,
+            analysis_mode="visual",
         )
         assert config.target_duration == 60.0
         assert config.aspect_ratio == "9:16"
@@ -50,7 +49,6 @@ class TestEditConfig:
         assert config.whisper_model == "small"
         assert config.highlight_keywords == ["test", "highlight"]
         assert config.context_seconds == 3.0
-        assert config.use_smart_transcriber is False
 
 
 class TestEditResult:
@@ -90,7 +88,7 @@ class TestEditResult:
 
 
 class TestAutoEditorBasicMode:
-    """AutoEditor tests in basic mode (use_smart_transcriber=False)."""
+    """AutoEditor tests in basic mode (analysis_mode="visual")."""
 
     @pytest.fixture
     def editor(self):
@@ -102,7 +100,7 @@ class TestAutoEditorBasicMode:
             ffmpeg=mock_ffmpeg,
             transcriber=mock_transcriber,
             scene_detector=mock_detector,
-            use_smart_transcriber=False,
+            analysis_mode="visual",
         )
 
     @pytest.fixture
@@ -117,22 +115,22 @@ class TestAutoEditorBasicMode:
         with patch("video_cut_skill.auto_editor.FFmpegWrapper"), patch(
             "video_cut_skill.auto_editor.SceneDetector"
         ):
-            editor = AutoEditor(use_smart_transcriber=False)
+            editor = AutoEditor(analysis_mode="visual")
             assert editor.ffmpeg is not None
             assert editor.transcriber is None  # Created lazily
             assert editor.scene_detector is not None
-            assert editor.use_smart_transcriber is False
+            assert editor.analysis_mode == "visual"
 
     def test_initialization_default_smart(self):
-        """Test default initialization in smart mode."""
+        """Test default initialization in audio analysis mode."""
         with patch("video_cut_skill.auto_editor.FFmpegWrapper"), patch(
             "video_cut_skill.auto_editor.SmartTranscriber"
         ):
-            editor = AutoEditor(use_smart_transcriber=True)
+            editor = AutoEditor(analysis_mode="audio")
             assert editor.ffmpeg is not None
             assert editor.transcriber is not None  # Created immediately
-            assert editor.scene_detector is None  # Not used in smart mode
-            assert editor.use_smart_transcriber is True
+            assert editor.scene_detector is None  # Not used in audio mode
+            assert editor.analysis_mode == "audio"
 
     def test_process_video_file_not_found(self, editor):
         """Test processing non-existent file returns error result."""
@@ -226,13 +224,13 @@ class TestAutoEditorBasicMode:
 
     def test_cut_by_scenes_raises_in_smart_mode(self, temp_video, tmp_path):
         """Test cut_by_scenes raises error in smart mode."""
-        editor = AutoEditor(use_smart_transcriber=True)
+        editor = AutoEditor(analysis_mode="audio")
         with pytest.raises(RuntimeError, match="仅在基础模式"):
             editor.cut_by_scenes(temp_video, tmp_path / "scenes")
 
 
 class TestAutoEditorSmartMode:
-    """AutoEditor tests in smart mode (use_smart_transcriber=True)."""
+    """AutoEditor tests in smart mode (analysis_mode="audio")."""
 
     @pytest.fixture
     def editor(self):
@@ -242,7 +240,7 @@ class TestAutoEditorSmartMode:
         return AutoEditor(
             ffmpeg=mock_ffmpeg,
             transcriber=mock_smart_transcriber,
-            use_smart_transcriber=True,
+            analysis_mode="audio",
         )
 
     @pytest.fixture
@@ -336,7 +334,7 @@ class TestConvenienceFunctions:
 
         result = process_video("/input.mp4", target_duration=60.0)
 
-        mock_editor_class.assert_called_once_with(use_smart_transcriber=True)
+        mock_editor_class.assert_called_once_with(analysis_mode="audio")
         mock_editor.process_video.assert_called_once()
         assert result.output_path == Path("/output.mp4")
 
@@ -349,9 +347,9 @@ class TestConvenienceFunctions:
             output_path=Path("/output.mp4")
         )
 
-        process_video("/input.mp4", use_smart_transcriber=False)
+        process_video("/input.mp4", analysis_mode="visual")
 
-        mock_editor_class.assert_called_once_with(use_smart_transcriber=False)
+        mock_editor_class.assert_called_once_with(analysis_mode="visual")
 
     @patch("video_cut_skill.auto_editor.AutoEditor")
     def test_extract_highlights_function(self, mock_editor_class):
@@ -362,6 +360,6 @@ class TestConvenienceFunctions:
 
         result = extract_highlights("/input.mp4", keywords=["test"])
 
-        mock_editor_class.assert_called_once_with(use_smart_transcriber=True)
+        mock_editor_class.assert_called_once_with(analysis_mode="audio")
         mock_editor.extract_highlights.assert_called_once()
         assert result == Path("/highlights.mp4")

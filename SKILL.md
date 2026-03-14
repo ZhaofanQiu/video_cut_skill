@@ -45,15 +45,15 @@ python -m video_cut_skill.scripts.download_models --list
 
 ### 1. Auto Editor - One-Click Processing (Unified API v0.3.2+)
 
-The unified `AutoEditor` supports two modes:
-- **Smart Mode** (`use_smart_transcriber=True`): Dynamic model selection, audio detection
-- **Basic Mode** (`use_smart_transcriber=False`): Scene detection, fixed models
+The unified `AutoEditor` supports two analysis modes:
+- **Audio Analysis** (`analysis_mode="audio"`): Speech recognition, dynamic model selection
+- **Visual Analysis** (`analysis_mode="visual"`): Scene detection, shot segmentation
 
 ```python
 from video_cut_skill import AutoEditor, EditConfig
 
-# Smart Mode (Recommended) - Auto-select models based on video duration
-editor = AutoEditor(use_smart_transcriber=True)
+# Audio Analysis Mode (Default) - Best for interviews, podcasts, tutorials
+editor = AutoEditor(analysis_mode="audio")
 
 result = editor.process_video(
     "input.mp4",
@@ -77,7 +77,7 @@ print(f"Model used: {result.transcript.get('model_used')}")
 ```python
 from video_cut_skill import AutoEditor
 
-editor = AutoEditor(use_smart_transcriber=True)
+editor = AutoEditor(analysis_mode="audio")
 
 result = editor.extract_highlights(
     "input.mp4",
@@ -88,15 +88,15 @@ result = editor.extract_highlights(
 )
 ```
 
-### 3. Cut by Scenes (Basic Mode Only)
+### 3. Cut by Scenes (Visual Analysis Mode Only)
 
-Scene detection requires Basic Mode:
+Scene detection requires Visual Analysis Mode:
 
 ```python
 from video_cut_skill import AutoEditor
 
-# Basic Mode supports scene detection
-editor = AutoEditor(use_smart_transcriber=False)
+# Visual Analysis Mode supports scene detection
+editor = AutoEditor(analysis_mode="visual")
 
 clips = editor.cut_by_scenes(
     "input.mp4",
@@ -249,15 +249,22 @@ config = EditConfig(
 
 ### Mode Comparison
 
-| Feature | Smart Mode | Basic Mode |
-|---------|------------|------------|
-| Initialization | `AutoEditor(use_smart_transcriber=True)` | `AutoEditor(use_smart_transcriber=False)` |
+| Feature | Audio Analysis | Visual Analysis |
+|---------|----------------|-----------------|
+| Initialization | `AutoEditor(analysis_mode="audio")` | `AutoEditor(analysis_mode="visual")` |
+| Best for | Interviews, podcasts, tutorials | Movies, MVs, scene-based content |
+| Speech recognition | ✅ | ❌ |
 | Dynamic model selection | ✅ | ❌ |
+| Keyword extraction | ✅ | ❌ |
 | Audio stream detection | ✅ | ❌ |
 | Scene detection | ❌ | ✅ |
 | `cut_by_scenes()` | ❌ | ✅ |
 | `process_video()` | ✅ | ✅ |
 | `extract_highlights()` | ✅ | ✅ |
+
+### Future: Hybrid Mode
+
+Planned for future release: `analysis_mode="hybrid"` will combine both audio and visual analysis for comprehensive content understanding.
 
 ### Whisper Models
 
