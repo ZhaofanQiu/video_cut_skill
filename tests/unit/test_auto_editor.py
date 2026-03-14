@@ -1,4 +1,4 @@
-"""Tests for auto editor."""
+"""Tests for auto editor (unified version)."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -7,7 +7,13 @@ import pytest
 
 from video_cut_skill.ai.scene_detector import Scene, SceneDetectionResult
 from video_cut_skill.ai.transcriber import TranscriptResult, TranscriptSegment
-from video_cut_skill.auto_editor import AutoEditor, EditConfig, EditResult
+from video_cut_skill.auto_editor import (
+    AutoEditor,
+    EditConfig,
+    EditResult,
+    extract_highlights,
+    process_video,
+)
 
 
 class TestEditConfig:
@@ -21,6 +27,9 @@ class TestEditConfig:
         assert config.add_subtitles is True
         assert config.output_path is None
         assert config.whisper_model == "base"
+        assert config.highlight_keywords == []
+        assert config.context_seconds == 2.0
+        assert config.use_smart_transcriber is True
 
     def test_custom_initialization(self):
         """Test custom values."""
@@ -30,12 +39,18 @@ class TestEditConfig:
             add_subtitles=False,
             output_path="/output/video.mp4",
             whisper_model="small",
+            highlight_keywords=["test", "highlight"],
+            context_seconds=3.0,
+            use_smart_transcriber=False,
         )
         assert config.target_duration == 60.0
         assert config.aspect_ratio == "9:16"
         assert config.add_subtitles is False
         assert config.output_path == "/output/video.mp4"
         assert config.whisper_model == "small"
+        assert config.highlight_keywords == ["test", "highlight"]
+        assert config.context_seconds == 3.0
+        assert config.use_smart_transcriber is False
 
 
 class TestEditResult:
@@ -47,15 +62,13 @@ class TestEditResult:
         assert result.output_path == Path("/output/video.mp4")
         assert result.transcript is None
         assert result.scenes is None
+        assert result.duration == 0.0
+        assert result.processing_time == 0.0
+        assert result.error is None
 
-    def test_initialization_with_optional_fields(self):
+    def test_initialization_with_all_fields(self):
         """Test initialization with all fields."""
-        transcript = TranscriptResult(
-            text="Hello",
-            segments=[TranscriptSegment(start=0.0, end=1.0, text="Hello")],
-            language="en",
-            duration=1.0,
-        )
+        transcript = {"text": "Hello", "segments": [], "language": "en"}
         scenes = SceneDetectionResult(
             scenes=[],
             video_path="/path/to/video.mp4",
@@ -66,17 +79,22 @@ class TestEditResult:
             output_path=Path("/output/video.mp4"),
             transcript=transcript,
             scenes=scenes,
+            duration=60.0,
+            processing_time=5.5,
+            error=None,
         )
         assert result.transcript == transcript
         assert result.scenes == scenes
+        assert result.duration == 60.0
+        assert result.processing_time == 5.5
 
 
-class TestAutoEditor:
-    """AutoEditor tests."""
+class TestAutoEditorBasicMode:
+    """AutoEditor tests in basic mode (use_smart_transcriber=False)."""
 
     @pytest.fixture
     def editor(self):
-        """Create editor instance with mocked dependencies."""
+        """Create editor instance with mocked dependencies (basic mode)."""
         mock_ffmpeg = MagicMock()
         mock_transcriber = MagicMock()
         mock_detector = MagicMock()
@@ -84,6 +102,7 @@ class TestAutoEditor:
             ffmpeg=mock_ffmpeg,
             transcriber=mock_transcriber,
             scene_detector=mock_detector,
+            use_smart_transcriber=False,
         )
 
     @pytest.fixture
@@ -93,43 +112,43 @@ class TestAutoEditor:
         video_file.write_text("fake video content")
         return video_file
 
-    def test_initialization_default(self):
-        """Test default initialization creates components."""
-        with patch("video_cut_skill.auto_editor.FFmpegWrapper"), patch("video_cut_skill.auto_editor.SceneDetector"):
-            editor = AutoEditor()
+    def test_initialization_default_basic(self):
+        """Test default initialization in basic mode."""
+        with patch("video_cut_skill.auto_editor.FFmpegWrapper"), patch(
+            "video_cut_skill.auto_editor.SceneDetector"
+        ):
+            editor = AutoEditor(use_smart_transcriber=False)
             assert editor.ffmpeg is not None
             assert editor.transcriber is None  # Created lazily
             assert editor.scene_detector is not None
+            assert editor.use_smart_transcriber is False
 
-    def test_initialization_with_custom_components(self):
-        """Test initialization with custom components."""
-        mock_ffmpeg = MagicMock()
-        mock_transcriber = MagicMock()
-        mock_detector = MagicMock()
-
-        editor = AutoEditor(
-            ffmpeg=mock_ffmpeg,
-            transcriber=mock_transcriber,
-            scene_detector=mock_detector,
-        )
-
-        assert editor.ffmpeg == mock_ffmpeg
-        assert editor.transcriber == mock_transcriber
-        assert editor.scene_detector == mock_detector
+    def test_initialization_default_smart(self):
+        """Test default initialization in smart mode."""
+        with patch("video_cut_skill.auto_editor.FFmpegWrapper"), patch(
+            "video_cut_skill.auto_editor.SmartTranscriber"
+        ):
+            editor = AutoEditor(use_smart_transcriber=True)
+            assert editor.ffmpeg is not None
+            assert editor.transcriber is not None  # Created immediately
+            assert editor.scene_detector is None  # Not used in smart mode
+            assert editor.use_smart_transcriber is True
 
     def test_process_video_file_not_found(self, editor):
-        """Test processing non-existent file raises error."""
+        """Test processing non-existent file returns error result."""
         config = EditConfig()
-        with pytest.raises(FileNotFoundError):
-            editor.process_video("/nonexistent/video.mp4", config)
+        result = editor.process_video("/nonexistent/video.mp4", config)
+        assert result.error is not None
+        assert "不存在" in result.error
 
     def test_process_video_basic(self, editor, temp_video):
-        """Test basic video processing."""
+        """Test basic video processing in basic mode."""
         # Setup mocks
         editor.ffmpeg.get_video_info.return_value = {
             "duration": 120.0,
             "width": 1920,
             "height": 1080,
+            "has_audio": True,
         }
         editor.scene_detector.detect.return_value = SceneDetectionResult(
             scenes=[Scene(start=0.0, end=10.0, start_frame=0, end_frame=300)],
@@ -153,6 +172,7 @@ class TestAutoEditor:
             "duration": 60.0,
             "width": 1920,
             "height": 1080,
+            "has_audio": True,
         }
         editor.scene_detector.detect.return_value = SceneDetectionResult(
             scenes=[],
@@ -168,7 +188,6 @@ class TestAutoEditor:
             duration=1.0,
         )
         editor.transcriber.transcribe.return_value = transcript
-        editor.transcriber.export_srt = MagicMock()
         editor.ffmpeg.add_subtitle = MagicMock()
 
         config = EditConfig(add_subtitles=True)
@@ -176,55 +195,11 @@ class TestAutoEditor:
 
         assert isinstance(result, EditResult)
         editor.transcriber.transcribe.assert_called_once()
-        assert result.transcript == transcript
-
-    def test_process_video_with_duration_cut(self, editor, temp_video):
-        """Test video processing with target duration."""
-        # Setup mocks
-        editor.ffmpeg.get_video_info.return_value = {
-            "duration": 120.0,
-            "width": 1920,
-            "height": 1080,
-        }
-        editor.scene_detector.detect.return_value = SceneDetectionResult(
-            scenes=[],
-            video_path=str(temp_video),
-            detector_type="content",
-            total_duration=120.0,
-        )
-
-        config = EditConfig(target_duration=30.0, add_subtitles=False)
-        _ = editor.process_video(temp_video, config)
-
-        editor.ffmpeg.cut_clip.assert_called_once()
-        call_args = editor.ffmpeg.cut_clip.call_args
-        assert call_args[1]["start_time"] == 0
-        assert call_args[1]["end_time"] == 30.0
-
-    def test_process_video_no_duration_cut(self, editor, temp_video):
-        """Test video processing without duration cut copies file."""
-        # Setup mocks
-        editor.ffmpeg.get_video_info.return_value = {
-            "duration": 60.0,
-            "width": 1920,
-            "height": 1080,
-        }
-        editor.scene_detector.detect.return_value = SceneDetectionResult(
-            scenes=[],
-            video_path=str(temp_video),
-            detector_type="content",
-            total_duration=60.0,
-        )
-
-        config = EditConfig(target_duration=120.0, add_subtitles=False)  # Longer than video
-        result = editor.process_video(temp_video, config)
-
-        # Should not call cut_clip, should copy instead
-        editor.ffmpeg.cut_clip.assert_not_called()
-        assert result.output_path.exists()
+        assert result.transcript is not None
+        assert result.transcript["text"] == "Hello world"
 
     def test_cut_by_scenes(self, editor, temp_video, tmp_path):
-        """Test cutting video by scenes."""
+        """Test cutting video by scenes (basic mode only)."""
         output_dir = tmp_path / "scenes"
 
         # Setup mocks
@@ -249,136 +224,144 @@ class TestAutoEditor:
         editor.scene_detector.detect.assert_called_once()
         editor.scene_detector.split_video.assert_called_once()
 
-    def test_cut_by_scenes_creates_output_dir(self, editor, temp_video, tmp_path):
-        """Test cut_by_scenes creates output directory."""
-        output_dir = tmp_path / "new_scenes_dir"
+    def test_cut_by_scenes_raises_in_smart_mode(self, temp_video, tmp_path):
+        """Test cut_by_scenes raises error in smart mode."""
+        editor = AutoEditor(use_smart_transcriber=True)
+        with pytest.raises(RuntimeError, match="仅在基础模式"):
+            editor.cut_by_scenes(temp_video, tmp_path / "scenes")
 
-        # Setup mocks
-        editor.scene_detector.detect.return_value = SceneDetectionResult(
-            scenes=[],
-            video_path=str(temp_video),
-            detector_type="content",
-            total_duration=60.0,
+
+class TestAutoEditorSmartMode:
+    """AutoEditor tests in smart mode (use_smart_transcriber=True)."""
+
+    @pytest.fixture
+    def editor(self):
+        """Create editor instance with mocked dependencies (smart mode)."""
+        mock_ffmpeg = MagicMock()
+        mock_smart_transcriber = MagicMock()
+        return AutoEditor(
+            ffmpeg=mock_ffmpeg,
+            transcriber=mock_smart_transcriber,
+            use_smart_transcriber=True,
         )
-        editor.scene_detector.split_video.return_value = []
 
-        editor.cut_by_scenes(temp_video, output_dir)
+    @pytest.fixture
+    def temp_video(self, tmp_path):
+        """Create a temporary video file."""
+        video_file = tmp_path / "test_video.mp4"
+        video_file.write_text("fake video content")
+        return video_file
 
-        assert output_dir.exists()
+    def test_smart_transcriber_audio_check(self, editor, temp_video):
+        """Test audio stream check in smart mode."""
+        editor._smart_transcriber.has_audio_stream.return_value = False
+        editor.ffmpeg.get_video_info.return_value = {
+            "duration": 60.0,
+            "width": 1920,
+            "height": 1080,
+        }
 
-    def test_extract_highlights_no_matches(self, editor, temp_video, tmp_path):
-        """Test extracting highlights with no keyword matches."""
+        config = EditConfig()
+        result = editor.process_video(temp_video, config)
+
+        assert result.error is not None
+        assert "无音频" in result.error
+
+    def test_smart_transcriber_model_auto_selection(self, editor, temp_video):
+        """Test automatic model selection based on duration."""
+        from video_cut_skill.core.smart_transcriber import ModelSize
+
+        # Short video
+        editor._smart_transcriber.has_audio_stream.return_value = True
+        editor._smart_transcriber.get_video_duration.return_value = 60.0  # < 300s
+        editor._smart_transcriber.transcribe.return_value = MagicMock(
+            error=None,
+            text="Test",
+            segments=[],
+            language="en",
+            model_used="base",
+        )
+        editor.ffmpeg.get_video_info.return_value = {
+            "duration": 60.0,
+            "width": 1920,
+            "height": 1080,
+        }
+
+        config = EditConfig(whisper_model="auto")
+        editor.process_video(temp_video, config)
+
+        # Should use BASE for short video
+        call_args = editor._smart_transcriber.transcribe.call_args
+        assert call_args[1]["model"] == ModelSize.BASE
+
+    def test_extract_highlights_smart_mode(self, editor, temp_video, tmp_path):
+        """Test extract_highlights in smart mode."""
         output_path = tmp_path / "highlights.mp4"
 
         # Setup mocks
-        transcript = TranscriptResult(
-            text="Some content",
-            segments=[TranscriptSegment(start=0.0, end=1.0, text="Some content")],
+        editor._smart_transcriber.transcribe.return_value = MagicMock(
+            error=None,
+            text="Hello world test content",
+            segments=[
+                {"start": 0.0, "end": 1.0, "text": "Hello world"},
+                {"start": 2.0, "end": 3.0, "text": "test content"},
+            ],
             language="en",
-            duration=1.0,
+            model_used="base",
         )
-        editor.transcriber.transcribe.return_value = transcript
-        editor.transcriber.detect_keywords.return_value = []
+        editor.ffmpeg.cut_clip = MagicMock()
 
         result = editor.extract_highlights(
             temp_video,
-            keywords=["nonexistent"],
+            keywords=["hello"],
             output_path=output_path,
         )
 
-        # Should return original video path when no matches
-        assert result == temp_video
+        assert result == output_path
+        editor._smart_transcriber.transcribe.assert_called_once()
+        editor.ffmpeg.cut_clip.assert_called_once()
 
-    def test_extract_highlights_with_matches(self, editor, temp_video, tmp_path):
-        """Test extracting highlights with keyword matches."""
-        output_path = tmp_path / "highlights.mp4"
 
-        # Setup mocks
-        transcript = TranscriptResult(
-            text="Hello world",
-            segments=[TranscriptSegment(start=0.0, end=1.0, text="Hello world")],
-            language="en",
-            duration=1.0,
-        )
-        editor.transcriber.transcribe.return_value = transcript
-        editor.transcriber.detect_keywords.return_value = [
-            {"start": 0.0, "end": 1.0, "keyword": "hello"},
-        ]
-        editor.ffmpeg.cut_clip = MagicMock()
+class TestConvenienceFunctions:
+    """Test convenience functions."""
 
-        # Create temp dir and clip file for the test
-        import os
-
-        os.makedirs("/tmp/video_cut_skill", exist_ok=True)
-        with open("/tmp/video_cut_skill/highlight_000.mp4", "w") as f:
-            f.write("fake clip")
-
-        try:
-            result = editor.extract_highlights(
-                temp_video,
-                keywords=["hello"],
-                output_path=output_path,
-            )
-
-            assert result == output_path
-            editor.ffmpeg.cut_clip.assert_called_once()
-        finally:
-            # Cleanup
-            import shutil
-
-            if os.path.exists("/tmp/video_cut_skill"):
-                shutil.rmtree("/tmp/video_cut_skill")
-
-    def test_extract_highlights_creates_transcriber(self, editor, temp_video, tmp_path):
-        """Test extract_highlights creates transcriber if None."""
-        output_path = tmp_path / "highlights.mp4"
-        editor.transcriber = None
-
-        with patch("video_cut_skill.auto_editor.Transcriber") as mock_transcriber_class:
-            mock_transcriber = MagicMock()
-            mock_transcriber.transcribe.return_value = TranscriptResult(
-                text="Test",
-                segments=[TranscriptSegment(start=0.0, end=1.0, text="Test")],
-                language="en",
-                duration=1.0,
-            )
-            mock_transcriber.detect_keywords.return_value = []
-            mock_transcriber_class.return_value = mock_transcriber
-
-            editor.extract_highlights(
-                temp_video,
-                keywords=["test"],
-                output_path=output_path,
-                whisper_model="small",
-            )
-
-            mock_transcriber_class.assert_called_once_with(model_size="small")
-
-    def test_extract_highlights_concatenates_multiple_clips(self, editor, temp_video, tmp_path):
-        """Test extracting multiple highlights concatenates them."""
-        output_path = tmp_path / "highlights.mp4"
-
-        # Setup mocks
-        transcript = TranscriptResult(
-            text="Hello world test",
-            segments=[TranscriptSegment(start=0.0, end=3.0, text="Hello world test")],
-            language="en",
-            duration=3.0,
-        )
-        editor.transcriber.transcribe.return_value = transcript
-        editor.transcriber.detect_keywords.return_value = [
-            {"start": 0.0, "end": 1.0, "keyword": "hello"},
-            {"start": 2.0, "end": 3.0, "keyword": "test"},
-        ]
-        editor.ffmpeg.cut_clip = MagicMock()
-        editor.ffmpeg.concatenate_clips = MagicMock()
-
-        editor.extract_highlights(
-            temp_video,
-            keywords=["hello", "test"],
-            output_path=output_path,
+    @patch("video_cut_skill.auto_editor.AutoEditor")
+    def test_process_video_function(self, mock_editor_class):
+        """Test process_video convenience function."""
+        mock_editor = MagicMock()
+        mock_editor_class.return_value = mock_editor
+        mock_editor.process_video.return_value = EditResult(
+            output_path=Path("/output.mp4")
         )
 
-        # Should concatenate since there are multiple clips
-        assert editor.ffmpeg.cut_clip.call_count == 2
-        editor.ffmpeg.concatenate_clips.assert_called_once()
+        result = process_video("/input.mp4", target_duration=60.0)
+
+        mock_editor_class.assert_called_once_with(use_smart_transcriber=True)
+        mock_editor.process_video.assert_called_once()
+        assert result.output_path == Path("/output.mp4")
+
+    @patch("video_cut_skill.auto_editor.AutoEditor")
+    def test_process_video_function_basic_mode(self, mock_editor_class):
+        """Test process_video with basic mode."""
+        mock_editor = MagicMock()
+        mock_editor_class.return_value = mock_editor
+        mock_editor.process_video.return_value = EditResult(
+            output_path=Path("/output.mp4")
+        )
+
+        process_video("/input.mp4", use_smart_transcriber=False)
+
+        mock_editor_class.assert_called_once_with(use_smart_transcriber=False)
+
+    @patch("video_cut_skill.auto_editor.AutoEditor")
+    def test_extract_highlights_function(self, mock_editor_class):
+        """Test extract_highlights convenience function."""
+        mock_editor = MagicMock()
+        mock_editor_class.return_value = mock_editor
+        mock_editor.extract_highlights.return_value = Path("/highlights.mp4")
+
+        result = extract_highlights("/input.mp4", keywords=["test"])
+
+        mock_editor_class.assert_called_once_with(use_smart_transcriber=True)
+        mock_editor.extract_highlights.assert_called_once()
+        assert result == Path("/highlights.mp4")

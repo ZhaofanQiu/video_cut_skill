@@ -85,8 +85,14 @@ class SmartTranscriber:
     def has_audio_stream(self, video_path: str) -> bool:
         """检测视频是否有音频轨道"""
         try:
-            cmd = f"ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of json '{video_path}'"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-select_streams", "a:0",
+                "-show_entries", "stream=codec_type",
+                "-of", "json",
+                video_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             data = json.loads(result.stdout)
             return len(data.get('streams', [])) > 0
         except:
@@ -95,8 +101,13 @@ class SmartTranscriber:
     def get_video_duration(self, video_path: str) -> float:
         """获取视频时长（秒）"""
         try:
-            cmd = f"ffprobe -v error -show_entries format=duration -of json '{video_path}'"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "json",
+                video_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             return float(json.loads(result.stdout)['format']['duration'])
         except:
             return 0.0
@@ -168,13 +179,19 @@ class SmartTranscriber:
         # 3. 执行转录
         output_dir = os.path.dirname(video_path) or "."
         base_name = os.path.splitext(os.path.basename(video_path))[0]
-        
-        cmd = f"whisper '{video_path}' --model {model.value} --language {language} --output_format json --output_dir '{output_dir}'"
-        
+
+        cmd = [
+            "whisper", video_path,
+            "--model", model.value,
+            "--language", language,
+            "--output_format", "json",
+            "--output_dir", output_dir,
+        ]
+
         print(f"[转录] 使用模型: {model.value}")
-        print(f"[转录] 命令: {cmd}")
-        
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        print(f"[转录] 命令: {' '.join(cmd)}")
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
         # 4. 读取结果
         json_path = os.path.join(output_dir, f"{base_name}.json")

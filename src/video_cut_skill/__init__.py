@@ -14,7 +14,13 @@ from video_cut_skill.ai.transcriber import Transcriber
 from video_cut_skill.audio import AudioAnalyzer, AudioEnhancer
 
 # AutoEditor
-from video_cut_skill.auto_editor import AutoEditor, EditConfig
+from video_cut_skill.auto_editor import (
+    AutoEditor,
+    EditConfig,
+    EditResult,
+    extract_highlights,
+    process_video,
+)
 from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
 from video_cut_skill.core.models import Clip, Project, Timeline, Track
 
@@ -73,6 +79,9 @@ __all__ = [
     # AutoEditor
     "AutoEditor",
     "EditConfig",
+    "EditResult",
+    "process_video",
+    "extract_highlights",
     # Motion Graphics
     "EasingFunction",
     "EasingType",
