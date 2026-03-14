@@ -528,3 +528,323 @@ class FFmpegWrapper:
         except ffmpeg.Error as e:
             error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
             raise FFmpegError(f"Failed to change aspect ratio: {error_msg}") from e
+
+    def overlay_video(
+        self,
+        base_video: Union[str, Path],
+        overlay_video: Union[str, Path],
+        output_path: Union[str, Path],
+        position: str = "right_bottom",
+        scale: float = 0.25,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+        margin: int = 20,
+    ) -> Path:
+        """画中画 (PIP) 效果 - 将视频叠加到另一个视频上.
+
+        Args:
+            base_video: 基础视频路径（主视频）
+            overlay_video: 叠加视频路径（小视频）
+            output_path: 输出路径
+            position: 叠加位置，可选:
+                - "left_top": 左上
+                - "right_top": 右上
+                - "left_bottom": 左下
+                - "right_bottom": 右下 (默认)
+                - "center": 居中
+            scale: 叠加视频缩放比例 (相对于基础视频的宽度)，默认 0.25 (25%)
+            start_time: 叠加开始时间（秒），默认从0开始
+            end_time: 叠加结束时间（秒），默认到叠加视频结束
+            margin: 距离边缘的边距（像素），默认20
+
+        Returns:
+            输出视频路径
+
+        Example:
+            # 右上角显示小视频
+            wrapper.overlay_video(
+                "main.mp4",
+                "inset.mp4",
+                "output.mp4",
+                position="right_top",
+                scale=0.3,
+                start_time=5.0,
+                end_time=15.0
+            )
+        """
+        base_video = str(base_video)
+        overlay_video = str(overlay_video)
+        output_path = str(output_path)
+
+        try:
+            # 获取基础视频信息
+            base_info = self.get_video_info(base_video)
+            base_width = base_info["width"]
+            base_height = base_info["height"]
+
+            # 计算叠加视频尺寸
+            overlay_width = int(base_width * scale)
+            overlay_height = -1  # 保持宽高比
+
+            # 读取输入
+            base = ffmpeg.input(base_video)
+            overlay_input = ffmpeg.input(overlay_video)
+
+            # 获取基础视频信息以检查是否有音频
+            base_probe = self.probe(base_video)
+            base_has_audio = any(s.get("codec_type") == "audio" for s in base_probe.get("streams", []))
+
+            # 获取叠加视频的实际高度（用于计算位置）
+            overlay_info = self.get_video_info(overlay_video)
+            overlay_orig_width = overlay_info["width"]
+            overlay_orig_height = overlay_info["height"]
+            overlay_new_height = int(overlay_orig_height * (overlay_width / overlay_orig_width))
+
+            # 获取叠加视频信息以检查是否有音频
+            overlay_probe = self.probe(overlay_video)
+            overlay_has_audio = any(s.get("codec_type") == "audio" for s in overlay_probe.get("streams", []))
+
+            # 处理时间范围
+            overlay_video_stream = overlay_input.video
+            if start_time is not None or end_time is not None:
+                if start_time is not None:
+                    overlay_video_stream = overlay_video_stream.filter("trim", start=start_time)
+                if end_time is not None:
+                    duration = end_time - (start_time or 0)
+                    overlay_video_stream = overlay_video_stream.filter("trim", duration=duration)
+                overlay_video_stream = overlay_video_stream.filter("setpts", "PTS-STARTPTS")
+
+            # 缩放叠加视频
+            overlay_scaled = overlay_video_stream.filter("scale", overlay_width, overlay_height)
+
+            # 计算位置坐标
+            if position == "left_top":
+                x = margin
+                y = margin
+            elif position == "right_top":
+                x = base_width - overlay_width - margin
+                y = margin
+            elif position == "left_bottom":
+                x = margin
+                y = base_height - overlay_new_height - margin
+            elif position == "right_bottom":
+                x = base_width - overlay_width - margin
+                y = base_height - overlay_new_height - margin
+            elif position == "center":
+                x = (base_width - overlay_width) // 2
+                y = (base_height - overlay_new_height) // 2
+            else:
+                raise ValueError(f"Invalid position: {position}. " f"Use: left_top, right_top, left_bottom, right_bottom, center")
+
+            # 使用 filter_complex 进行叠加
+            stream = ffmpeg.filter(
+                [base.video, overlay_scaled],
+                "overlay",
+                x=x,
+                y=y,
+                shortest=1,
+            )
+
+            # 处理音频
+            if base_has_audio and overlay_has_audio:
+                overlay_audio = overlay_input.audio
+                if start_time is not None or end_time is not None:
+                    if start_time is not None:
+                        overlay_audio = overlay_audio.filter("atrim", start=start_time)
+                    if end_time is not None:
+                        duration = end_time - (start_time or 0)
+                        overlay_audio = overlay_audio.filter("atrim", duration=duration)
+                    overlay_audio = overlay_audio.filter("asetpts", "PTS-STARTPTS")
+                # 叠加视频的音量调低一些
+                overlay_audio = overlay_audio.filter("volume", 0.7)
+                audio = ffmpeg.filter([base.audio, overlay_audio], "amix", inputs=2, duration="first")
+                stream = ffmpeg.output(stream, audio, output_path, vcodec="libx264", acodec="aac")
+            elif base_has_audio:
+                stream = ffmpeg.output(stream, base.audio, output_path, vcodec="libx264", acodec="aac")
+            elif overlay_has_audio:
+                stream = ffmpeg.output(stream, overlay_input.audio, output_path, vcodec="libx264", acodec="aac")
+            else:
+                stream = ffmpeg.output(stream, output_path, vcodec="libx264")
+
+            ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
+
+            logger.info(f"PIP video saved to: {output_path} (position: {position}, scale: {scale})")
+            return Path(output_path)
+
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
+            raise FFmpegError(f"Failed to overlay video: {error_msg}") from e
+
+    def merge_videos_side_by_side(
+        self,
+        left_video: Union[str, Path],
+        right_video: Union[str, Path],
+        output_path: Union[str, Path],
+        mode: str = "fit",
+    ) -> Path:
+        """左右拼接两个视频（画中画的一种变体）.
+
+        Args:
+            left_video: 左侧视频路径
+            right_video: 右侧视频路径
+            output_path: 输出路径
+            mode: 调整模式 (fit-适应, fill-填充, stretch-拉伸)
+
+        Returns:
+            输出视频路径
+        """
+        left_video = str(left_video)
+        right_video = str(right_video)
+        output_path = str(output_path)
+
+        try:
+            # 获取视频信息
+            left_info = self.get_video_info(left_video)
+            right_info = self.get_video_info(right_video)
+
+            left_height = left_info["height"]
+            right_height = right_info["height"]
+
+            # 确定输出尺寸（取两个视频的最大高度）
+            target_height = max(left_height, right_height)
+            target_width = target_height * 2  # 左右各占一半
+
+            # 读取输入
+            left = ffmpeg.input(left_video)
+            right = ffmpeg.input(right_video)
+
+            if mode == "fit":
+                # 缩放并保持比例，确保尺寸为偶数
+                target_width_half = (target_width // 2) // 2 * 2
+                target_height = target_height // 2 * 2
+                left = left.filter("scale", target_width_half, target_height, force_original_aspect_ratio="decrease")
+                left = left.filter("scale", "trunc(iw/2)*2", "trunc(ih/2)*2")
+                right = right.filter("scale", target_width_half, target_height, force_original_aspect_ratio="decrease")
+                right = right.filter("scale", "trunc(iw/2)*2", "trunc(ih/2)*2")
+            elif mode == "stretch":
+                # 拉伸填充，确保尺寸为偶数
+                target_width_half = (target_width // 2) // 2 * 2
+                target_height = target_height // 2 * 2
+                left = left.filter("scale", target_width_half, target_height)
+                right = right.filter("scale", target_width_half, target_height)
+            elif mode == "fill":
+                # 裁剪填充
+                left = left.filter("scale", target_width // 2, target_height, force_original_aspect_ratio="increase")
+                left = left.filter("crop", (target_width // 2) // 2 * 2, target_height // 2 * 2)
+                right = right.filter("scale", target_width // 2, target_height, force_original_aspect_ratio="increase")
+                right = right.filter("crop", (target_width // 2) // 2 * 2, target_height // 2 * 2)
+
+            # 水平拼接
+            video = ffmpeg.filter([left, right], "hstack", inputs=2)
+
+            # 处理音频
+            left_probe = self.probe(left_video)
+            left_has_audio = any(s.get("codec_type") == "audio" for s in left_probe.get("streams", []))
+            right_probe = self.probe(right_video)
+            right_has_audio = any(s.get("codec_type") == "audio" for s in right_probe.get("streams", []))
+
+            if left_has_audio and right_has_audio:
+                audio = ffmpeg.filter([left.audio, right.audio], "amix", inputs=2, duration="first")
+                stream = ffmpeg.output(video, audio, output_path, vcodec="libx264", acodec="aac")
+            elif left_has_audio:
+                stream = ffmpeg.output(video, left.audio, output_path, vcodec="libx264", acodec="aac")
+            elif right_has_audio:
+                stream = ffmpeg.output(video, right.audio, output_path, vcodec="libx264", acodec="aac")
+            else:
+                stream = ffmpeg.output(video, output_path, vcodec="libx264")
+
+            ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
+
+            logger.info(f"Side-by-side video saved to: {output_path}")
+            return Path(output_path)
+
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
+            raise FFmpegError(f"Failed to merge videos side by side: {error_msg}") from e
+
+    def stack_videos_vertical(
+        self,
+        top_video: Union[str, Path],
+        bottom_video: Union[str, Path],
+        output_path: Union[str, Path],
+        mode: str = "fit",
+    ) -> Path:
+        """上下堆叠两个视频（画中画的一种变体）.
+
+        Args:
+            top_video: 上方视频路径
+            bottom_video: 下方视频路径
+            output_path: 输出路径
+            mode: 调整模式 (fit-适应, fill-填充, stretch-拉伸)
+
+        Returns:
+            输出视频路径
+        """
+        top_video = str(top_video)
+        bottom_video = str(bottom_video)
+        output_path = str(output_path)
+
+        try:
+            # 获取视频信息
+            top_info = self.get_video_info(top_video)
+            bottom_info = self.get_video_info(bottom_video)
+
+            top_width = top_info["width"]
+            bottom_width = bottom_info["width"]
+
+            # 确定输出尺寸（取两个视频的最大宽度）
+            target_width = max(top_width, bottom_width)
+            target_height = target_width  # 上下各占一半
+
+            # 读取输入
+            top = ffmpeg.input(top_video)
+            bottom = ffmpeg.input(bottom_video)
+
+            if mode == "fit":
+                # 缩放并保持比例，确保尺寸为偶数
+                target_width = target_width // 2 * 2
+                target_height_half = (target_height // 2) // 2 * 2
+                top = top.filter("scale", target_width, target_height_half, force_original_aspect_ratio="decrease")
+                top = top.filter("scale", "trunc(iw/2)*2", "trunc(ih/2)*2")
+                bottom = bottom.filter("scale", target_width, target_height_half, force_original_aspect_ratio="decrease")
+                bottom = bottom.filter("scale", "trunc(iw/2)*2", "trunc(ih/2)*2")
+            elif mode == "stretch":
+                # 拉伸填充，确保尺寸为偶数
+                target_width = target_width // 2 * 2
+                target_height_half = (target_height // 2) // 2 * 2
+                top = top.filter("scale", target_width, target_height_half)
+                bottom = bottom.filter("scale", target_width, target_height_half)
+            elif mode == "fill":
+                # 裁剪填充
+                top = top.filter("scale", target_width, target_height // 2, force_original_aspect_ratio="increase")
+                top = top.filter("crop", target_width // 2 * 2, (target_height // 2) // 2 * 2)
+                bottom = bottom.filter("scale", target_width, target_height // 2, force_original_aspect_ratio="increase")
+                bottom = bottom.filter("crop", target_width // 2 * 2, (target_height // 2) // 2 * 2)
+
+            # 垂直拼接
+            video = ffmpeg.filter([top, bottom], "vstack", inputs=2)
+
+            # 处理音频
+            top_probe = self.probe(top_video)
+            top_has_audio = any(s.get("codec_type") == "audio" for s in top_probe.get("streams", []))
+            bottom_probe = self.probe(bottom_video)
+            bottom_has_audio = any(s.get("codec_type") == "audio" for s in bottom_probe.get("streams", []))
+
+            if top_has_audio and bottom_has_audio:
+                audio = ffmpeg.filter([top.audio, bottom.audio], "amix", inputs=2, duration="first")
+                stream = ffmpeg.output(video, audio, output_path, vcodec="libx264", acodec="aac")
+            elif top_has_audio:
+                stream = ffmpeg.output(video, top.audio, output_path, vcodec="libx264", acodec="aac")
+            elif bottom_has_audio:
+                stream = ffmpeg.output(video, bottom.audio, output_path, vcodec="libx264", acodec="aac")
+            else:
+                stream = ffmpeg.output(video, output_path, vcodec="libx264")
+
+            ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
+
+            logger.info(f"Stacked video saved to: {output_path}")
+            return Path(output_path)
+
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
+            raise FFmpegError(f"Failed to stack videos vertically: {error_msg}") from e
