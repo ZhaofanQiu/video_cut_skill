@@ -167,6 +167,14 @@ class TextElement:
 
         # 转换颜色格式 (RGB -> BGR for ASS)
         def convert_color(hex_color: str) -> str:
+            """将十六进制颜色转换为 ASS 格式.
+
+            Args:
+                hex_color: 十六进制颜色字符串 (#RRGGBB)
+
+            Returns:
+                ASS 格式的颜色字符串 (&HBBGGRR&)
+            """
             hex_color = hex_color.lstrip("#")
             r, g, b = hex_color[0:2], hex_color[2:4], hex_color[4:6]
             return f"&H{b}{g}{r}&"
@@ -189,4 +197,9 @@ class TextElement:
         )
 
     def __repr__(self) -> str:
+        """返回文本元素的字符串表示.
+
+        Returns:
+            格式为 "TextElement('text...' @ position)" 的字符串
+        """
         return f"TextElement('{self.text[:30]}...' @ {self.position})"

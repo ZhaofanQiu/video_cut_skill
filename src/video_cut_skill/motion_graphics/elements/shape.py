@@ -222,4 +222,9 @@ class ShapeElement:
         return ""
 
     def __repr__(self) -> str:
+        """返回形状的字符串表示.
+
+        Returns:
+            格式为 "ShapeElement(type)" 的字符串
+        """
         return f"ShapeElement({self.shape_type.value})"

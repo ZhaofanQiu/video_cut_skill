@@ -378,4 +378,9 @@ class EasingFunction:
         return self.apply(t)
 
     def __repr__(self) -> str:
+        """返回缓动函数的字符串表示.
+
+        Returns:
+            格式为 "EasingFunction(type)" 的字符串
+        """
         return f"EasingFunction({self._type.value})"

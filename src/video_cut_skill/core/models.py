@@ -16,6 +16,11 @@ class Clip:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        """验证时间范围的有效性.
+
+        Raises:
+            ValueError: 如果时间范围无效
+        """
         if self.start_time < 0:
             raise ValueError("start_time must be non-negative")
         if self.end_time <= self.start_time:

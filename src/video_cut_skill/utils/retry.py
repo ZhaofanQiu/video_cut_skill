@@ -48,8 +48,28 @@ def retry_with_backoff(
     """
 
     def decorator(func: Callable) -> Callable:
+        """创建重试包装器.
+
+        Args:
+            func: 需要重试的函数
+
+        Returns:
+            包装后的函数
+        """
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
+            """包装函数，执行重试逻辑.
+
+            Args:
+                *args: 原函数的位置参数
+                **kwargs: 原函数的关键字参数
+
+            Returns:
+                原函数的返回值
+
+            Raises:
+                RetryError: 所有重试尝试失败后抛出
+            """
             last_exception = None
 
             for attempt in range(1, max_attempts + 1):

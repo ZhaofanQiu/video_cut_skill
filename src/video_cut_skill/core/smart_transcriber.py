@@ -80,6 +80,11 @@ class SmartTranscriber:
     }
     
     def __init__(self, cache_dir: str = None):
+        """初始化智能转录器.
+
+        Args:
+            cache_dir: Whisper 模型缓存目录，默认使用 ~/.cache/whisper
+        """
         self.cache_dir = cache_dir or os.path.expanduser("~/.cache/whisper")
         
     def has_audio_stream(self, video_path: str) -> bool:
