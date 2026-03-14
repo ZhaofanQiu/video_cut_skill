@@ -23,7 +23,7 @@ sudo apt update
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libswscale-dev
 
 # Install Python package
-pip install video-cut-skill
+pip install -e .
 
 # Or install from source
 git clone https://github.com/ZhaofanQiu/video_cut_skill.git
@@ -43,56 +43,60 @@ python -m video_cut_skill.scripts.download_models --list
 
 ## Usage Examples
 
-### 1. Auto Editor - One-Click Processing
+### 1. Auto Editor - One-Click Processing (Unified API v0.3.2+)
 
-Process a video with automatic transcription and subtitles:
+The unified `AutoEditor` supports two modes:
+- **Smart Mode** (`use_smart_transcriber=True`): Dynamic model selection, audio detection
+- **Basic Mode** (`use_smart_transcriber=False`): Scene detection, fixed models
 
 ```python
 from video_cut_skill import AutoEditor, EditConfig
 
-editor = AutoEditor()
+# Smart Mode (Recommended) - Auto-select models based on video duration
+editor = AutoEditor(use_smart_transcriber=True)
 
 result = editor.process_video(
     "input.mp4",
     EditConfig(
         target_duration=60,        # Cut to 60 seconds
         add_subtitles=True,        # Auto-generate subtitles
-        whisper_model="base",      # Whisper model (tiny/base/small/medium/large)
+        whisper_model="auto",      # "auto" selects tiny/base based on duration
+        highlight_keywords=["intro", "key point"],
+        context_seconds=2.0,
         output_path="output.mp4"
     )
 )
 
 print(f"Output: {result.output_path}")
-print(f"Language: {result.transcript.language}")
-print(f"Segments: {len(result.transcript.segments)}")
+print(f"Processing time: {result.processing_time:.1f}s")
+print(f"Model used: {result.transcript.get('model_used')}")
 ```
 
 ### 2. Extract Highlights by Keywords
 
-Find and extract clips containing specific keywords:
-
 ```python
 from video_cut_skill import AutoEditor
 
-editor = AutoEditor()
+editor = AutoEditor(use_smart_transcriber=True)
 
 result = editor.extract_highlights(
     "input.mp4",
     keywords=["important", "key point"],
     output_path="highlights.mp4",
     context_seconds=2.0,         # Add 2s before/after each match
-    whisper_model="base"
+    whisper_model="auto"
 )
 ```
 
-### 3. Cut by Scenes
+### 3. Cut by Scenes (Basic Mode Only)
 
-Automatically detect scene changes and split video:
+Scene detection requires Basic Mode:
 
 ```python
 from video_cut_skill import AutoEditor
 
-editor = AutoEditor()
+# Basic Mode supports scene detection
+editor = AutoEditor(use_smart_transcriber=False)
 
 clips = editor.cut_by_scenes(
     "input.mp4",
@@ -185,6 +189,46 @@ for scene in result.scenes[:5]:
 scene = result.get_scene_at_time(30.0)
 ```
 
+### 7. Smart Transcriber
+
+Intelligent transcription with dynamic model selection and silent video detection.
+
+```python
+from video_cut_skill.core.smart_transcriber import SmartTranscriber, ModelSize
+
+transcriber = SmartTranscriber()
+
+# Auto-select model based on video duration
+result = transcriber.transcribe("video.mp4")
+
+if result.error:
+    print(f"Error: {result.error}")
+else:
+    print(f"Text: {result.text}")
+    print(f"Model used: {result.model_used}")
+    print(f"Segments: {len(result.segments)}")
+```
+
+### 8. Tiered Transcription Strategy
+
+```python
+from video_cut_skill.core.smart_transcriber import SmartTranscriber, ModelSize
+
+transcriber = SmartTranscriber()
+
+# Step 1: Fast analysis with TINY model for long videos
+rough_result = transcriber.transcribe(
+    "long_video.mp4",
+    model=ModelSize.TINY
+)
+
+# Step 2: Precise transcription with BASE model for output clips
+final_result = transcriber.transcribe(
+    "highlight_clip.mp4",
+    model=ModelSize.BASE
+)
+```
+
 ## Configuration
 
 ### EditConfig Options
@@ -196,10 +240,24 @@ config = EditConfig(
     target_duration=60.0,        # Target video duration (seconds)
     aspect_ratio="9:16",         # Target aspect ratio or "original"
     add_subtitles=True,          # Enable subtitle generation
-    whisper_model="base",        # Whisper model size
+    whisper_model="auto",        # "auto", "tiny", "base", "small", "medium", "large"
+    highlight_keywords=[],       # Keywords for highlight extraction
+    context_seconds=2.0,         # Context padding for highlights
     output_path="output.mp4"     # Output file path
 )
 ```
+
+### Mode Comparison
+
+| Feature | Smart Mode | Basic Mode |
+|---------|------------|------------|
+| Initialization | `AutoEditor(use_smart_transcriber=True)` | `AutoEditor(use_smart_transcriber=False)` |
+| Dynamic model selection | ✅ | ❌ |
+| Audio stream detection | ✅ | ❌ |
+| Scene detection | ❌ | ✅ |
+| `cut_by_scenes()` | ❌ | ✅ |
+| `process_video()` | ✅ | ✅ |
+| `extract_highlights()` | ✅ | ✅ |
 
 ### Whisper Models
 
@@ -210,7 +268,8 @@ config = EditConfig(
 | small | ~244M | ~4x | ~2GB | Better accuracy |
 | medium | ~769M | ~2x | ~5GB | High accuracy |
 | large | ~1550M | 1x | ~10GB | Best accuracy |
-| turbo | ~809M | ~8x | ~6GB | Fast with large-v3 accuracy |
+
+**Note**: In local environment, only `tiny` and `base` are fully supported due to memory constraints.
 
 ## API Reference
 
@@ -218,10 +277,13 @@ config = EditConfig(
 
 Main class for automated video editing.
 
+**Constructor:**
+- `AutoEditor(use_smart_transcriber=True, work_dir=None)` - Create editor instance
+
 **Methods:**
 - `process_video(video_path, config)` - Process video with configuration
 - `extract_highlights(video_path, keywords, output_path, context_seconds, whisper_model)` - Extract keyword segments
-- `cut_by_scenes(video_path, output_dir, min_scene_duration)` - Split by scenes
+- `cut_by_scenes(video_path, output_dir, min_scene_duration)` - Split by scenes (Basic Mode only)
 
 ### FFmpegWrapper
 
@@ -258,14 +320,14 @@ Automatic scene change detection.
 Run the test suite:
 
 ```bash
-# Phase 1 tests (basic functionality)
-python tests/integration/test_phase1.py
-
-# Test 9 (Whisper base model + subtitle fix)
-python tests/integration/test9.py
+# Run all tests
+pytest tests/ -v
 
 # Unit tests
 pytest tests/unit/ -v
+
+# Integration tests
+pytest tests/integration/ -v
 ```
 
 ## Platform Notes
@@ -281,70 +343,6 @@ shutil.copy("video.mp4", "video.mp4.bin")
 # Send video.mp4.bin via Feishu
 # Recipient renames back to .mp4 after download
 ```
-
-## 7. Smart Transcriber - 智能转录 (新增 v0.3.1)
-
-Intelligent transcription with dynamic model selection and silent video detection.
-
-### 7.1 Basic Usage
-
-```python
-from video_cut_skill.core.smart_transcriber import SmartTranscriber, ModelSize
-
-transcriber = SmartTranscriber()
-
-# Auto-select model based on video duration
-result = transcriber.transcribe("video.mp4")
-
-if result.error:
-    print(f"Error: {result.error}")
-else:
-    print(f"Text: {result.text}")
-    print(f"Model used: {result.model_used}")
-    print(f"Segments: {len(result.segments)}")
-```
-
-### 7.2 Silent Video Detection
-
-```python
-# Automatically detect videos without audio
-result = transcriber.transcribe("silent_video.mp4")
-
-if result.error:
-    # Friendly error message:
-    # 【无音频】该视频没有音频轨道，无法进行语音识别。请检查：
-    #   1. 视频是否包含声音
-    #   2. 视频文件是否损坏
-    #   3. 尝试使用其他视频文件
-    print(result.error)
-```
-
-### 7.3 Tiered Transcription Strategy
-
-```python
-# Step 1: Fast analysis with TINY model
-rough_result = transcriber.transcribe(
-    "long_video.mp4",
-    model=ModelSize.TINY
-)
-
-# Extract highlight timestamps...
-
-# Step 2: Precise transcription with BASE model
-final_result = transcriber.transcribe(
-    "highlight_clip.mp4",
-    model=ModelSize.BASE
-)
-```
-
-### 7.4 Model Selection Guide
-
-| Model | Size | Speed | Memory | Best For |
-|-------|------|-------|--------|----------|
-| tiny | ~39M | ~10x | ~1GB | Long video analysis |
-| base | ~74M | ~7x | ~1GB | Short clips, output videos |
-
-**Note**: small/medium/large models require 2GB+/5GB+/10GB+ memory and may not work on low-memory systems.
 
 ## Troubleshooting
 
@@ -370,6 +368,13 @@ transcriber = Transcriber(model_size="tiny", device="cpu")
 ### Subtitles Not Showing
 
 Ensure subtitle file path is correct and video player supports subtitles.
+
+## Documentation
+
+- [README.md](README.md) - Main documentation
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+- [Configuration Reference](docs/configuration.md) - Complete configuration options
+- [Architecture Decisions](docs/adr/) - Design decision records
 
 ## License
 

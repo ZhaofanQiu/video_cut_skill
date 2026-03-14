@@ -36,31 +36,6 @@ Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提
 - 🎨 高级字幕动画
 - 🧠 生成式 AI 集成
 
-## 最新测试结果 (2026-03-14)
-
-### 智能转录模块测试 ✅
-
-| 测试项 | 状态 | 关键结果 |
-|--------|------|----------|
-| 端到端完整流程 | ✅ 通过 | 分级转录策略验证成功 (TINY+BASE) |
-| 错误恢复与异常处理 | ✅ 通过 | 7项全部通过 |
-| 性能压力测试 | ✅ 通过 | 31分钟视频稳定处理，无内存泄漏 |
-| 批量处理测试 | ✅ 通过 | 4/5视频成功处理 |
-| 集成兼容测试 | ✅ 通过 | 核心功能正常 |
-
-### 新增功能
-
-- **🧠 智能转录模块** (`SmartTranscriber`): 支持动态模型选择和静音检测
-- **🎯 分级转录策略**: 完整视频用TINY快速分析，高光片段用BASE精准转录
-- **🔇 静音检测**: 自动识别无音频视频，提供友好错误提示
-- **📊 性能优化**: 31分钟视频8分钟处理完成，内存使用稳定
-
-### 已知问题与限制
-
-- **内存限制**: 仅支持 tiny/base 模型（small/medium/large 需要 2GB+/5GB+/10GB+）
-- **并发控制**: 需要添加任务队列限制并发数（建议 max_concurrent=2）
-- **依赖问题**: FFmpeg Python 绑定可能导致导入失败
-
 ## 快速开始
 
 ### 安装
@@ -74,8 +49,8 @@ cd video_cut_skill
 sudo apt update
 sudo apt install ffmpeg libavcodec-dev libavformat-dev libswscale-dev
 
-# 安装 Python 依赖
-pip install -r requirements.txt
+# 安装 Python 包
+pip install -e .
 ```
 
 ### 预下载模型（推荐）
@@ -90,25 +65,47 @@ python scripts/download_models.py --list
 
 ## 使用示例
 
-### 基础剪辑
+### AutoEditor - 一键剪辑（统一版 v0.3.2+）
 
 ```python
 from video_cut_skill import AutoEditor, EditConfig
 
-editor = AutoEditor()
+# 智能模式（推荐）：动态模型选择、音频检测
+editor = AutoEditor(use_smart_transcriber=True)
 
-# 基础剪辑
+# 基础模式：场景检测、固定模型
+# editor = AutoEditor(use_smart_transcriber=False)
+
+# 处理视频
 result = editor.process_video(
     "input.mp4",
     EditConfig(
         target_duration=60,
         aspect_ratio="9:16",
         add_subtitles=True,
-        whisper_model="base",  # 可选: tiny/base/small/medium/large
+        whisper_model="auto",  # auto/tiny/base/small/medium/large
+        highlight_keywords=["重点", "总结"],
         output_path="output.mp4"
     )
 )
 print(f"Output: {result.output_path}")
+print(f"Processing time: {result.processing_time:.1f}s")
+```
+
+### 按场景切割（仅基础模式）
+
+```python
+from video_cut_skill import AutoEditor
+
+# 基础模式支持场景检测
+editor = AutoEditor(use_smart_transcriber=False)
+
+clips = editor.cut_by_scenes(
+    "input.mp4",
+    output_dir="./scenes/",
+    min_scene_duration=1.0
+)
+print(f"Generated {len(clips)} clips")
 ```
 
 ### AI 内容分析
@@ -192,18 +189,22 @@ video_cut_skill/
 ├── src/video_cut_skill/       # 源代码
 │   ├── core/                  # 核心引擎
 │   │   ├── ffmpeg_wrapper.py  # FFmpeg 封装
+│   │   ├── smart_transcriber.py  # 智能转录
 │   │   └── models.py          # 数据模型
 │   ├── ai/                    # AI 决策层
 │   │   ├── transcriber.py     # Whisper 语音识别
 │   │   ├── scene_detector.py  # 场景检测
-│   │   ├── analyzer.py        # 内容分析 (Phase 2)
-│   │   └── strategy.py        # 剪辑策略 (Phase 2)
-│   ├── motion_graphics/       # 动效系统 (Phase 2)
+│   │   ├── analyzer.py        # 内容分析
+│   │   └── strategy.py        # 剪辑策略
+│   ├── motion_graphics/       # 动效系统
 │   │   ├── animations/        # 动画库
 │   │   ├── elements/          # 元素库
 │   │   └── renderer.py        # 渲染器
-│   └── auto_editor.py         # 一键剪辑
+│   ├── audio/                 # 音频处理
+│   ├── utils/                 # 工具模块
+│   └── auto_editor.py         # 一键剪辑（统一版）
 ├── tests/                     # 测试
+│   ├── unit/                  # 单元测试
 │   └── integration/           # 集成测试
 ├── docs/                      # 文档
 ├── scripts/                   # 工具脚本
@@ -216,33 +217,34 @@ video_cut_skill/
 |------|------|----------|
 | Phase 1 | ✅ 完成 | FFmpeg, Whisper, 场景检测 |
 | Phase 2 | ✅ 完成 | AI分析, 策略生成, Motion Graphics |
-| Phase 3 | 🚧 规划 | 高级特效, 音频增强, 生成式AI |
+| Phase 3 | ✅ 完成 | GPU加速, 缓存, 音频增强, SmartTranscriber |
+| Phase 4 | 🚧 规划 | 高级特效, 音频增强, 生成式AI |
 
 ## 文档
 
 - [SKILL.md](SKILL.md) - Agent 调用文档
+- [CHANGELOG.md](CHANGELOG.md) - 版本历史和更新日志
+- [配置参考](docs/configuration.md) - 完整配置选项
+- [架构决策](docs/adr/) - 设计决策记录 (ADR)
 - [模型管理](docs/models.md) - Whisper 模型下载和管理
 - [API 文档](docs/api/) - 详细 API 参考
-- [开发指南](docs/development.md) - 开发环境设置
-- [测试指南](docs/testing-guide.md) - 测试说明
 - [测试报告](docs/TEST_REPORT.md) - 完整测试报告
 - [故障排除](docs/troubleshooting.md) - 常见问题
-- [云端服务规划](docs/cloud_service_plan.md) - 阿里云集成规划
 
 ## 测试
 
 ```bash
-# 运行 Phase 1 测试
-python tests/integration/test_phase1.py
-
-# 运行 Test 9 (最新测试)
-python tests/integration/test9.py
-
-# 运行 Phase 2 测试
-python tests/integration/test_phase2.py
+# 运行所有测试
+pytest tests/ -v
 
 # 运行单元测试
 pytest tests/unit/ -v
+
+# 运行集成测试
+pytest tests/integration/ -v
+
+# 代码检查
+mypy src/video_cut_skill --ignore-missing-imports
 ```
 
 ## 依赖
@@ -251,6 +253,8 @@ pytest tests/unit/ -v
 - **FFmpeg**: 4.0+
 - **核心库**: moviepy, whisper, scenedetect, pillow
 - **ML**: torch, transformers
+
+完整依赖列表见 `pyproject.toml`。
 
 ## 许可证
 
@@ -268,35 +272,10 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 ## 更新日志
 
-### v0.3.1 (2026-03-14)
-- ✅ **Phase 3.5 完成**: 智能转录模块、分级转录策略、静音检测
-- ✅ **智能转录模块**: `SmartTranscriber` 类，支持动态模型选择
-- ✅ **分级转录策略**: 长视频用TINY快速分析，高光用BASE精准转录
-- ✅ **静音检测**: 自动识别无音频视频，提供友好错误提示
-- ✅ **性能优化**: 31分钟视频8分钟处理完成，内存使用稳定
-- ✅ **完整测试**: 5大测试全部通过 (端到端/错误恢复/性能/批量/集成)
-- ✅ **云端规划**: 阿里云全栈服务规划文档
+查看 [CHANGELOG.md](CHANGELOG.md) 获取完整版本历史。
 
-### v0.3.0 (2026-03-14)
-- ✅ Phase 3 完成：GPU 加速、缓存系统、音频增强
-- ✅ GPU 自动检测（兼容无 GPU 机器）
-- ✅ 转录结果/场景检测结果缓存
-- ✅ LUFS 音量标准化、降噪
-- ✅ 所有新功能导出到主包
-
-### v0.2.1 (2026-03-14)
-- ✅ Test 9 通过：Whisper base 模型 + 字幕修复
-- ✅ 修复 `add_subtitle()` 音频丢失问题
-- ✅ 支持 `whisper_model` 参数 (tiny/base/small/medium/large/turbo)
-- ✅ 添加飞书文件传输文档
-
-### v0.2.0 (2026-03-14)
-- ✅ Phase 2 完成：AI 分析、策略生成、Motion Graphics
-- ✅ 新增 30+ 缓动函数
-- ✅ 动态文字和形状元素
-- ✅ 平台预设 (TikTok, YouTube, 小红书)
-
-### v0.1.0 (2026-03-13)
-- ✅ Phase 1 完成：FFmpeg 引擎、Whisper 集成、场景检测
-- ✅ 基础剪辑功能
-- ✅ 字幕生成
+### 最新更新 (v0.3.1)
+- ✅ **AutoEditor 统一版**: 合并基础版和增强版，支持智能/基础双模式
+- ✅ **类型安全**: mypy 零错误通过
+- ✅ **文档完善**: 100% docstrings 覆盖，新增 ADR 和配置参考
+- ✅ **安全修复**: 移除所有 shell=True 命令
