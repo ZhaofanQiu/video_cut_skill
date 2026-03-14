@@ -40,23 +40,27 @@ plugins:
 nav:
   - Home: index.md
   - Getting Started:
-      - Installation: installation.md
-      - Quick Start: quickstart.md
       - Testing Guide: testing-guide.md
       - Model Management: models.md
       - Troubleshooting: troubleshooting.md
+      - Configuration: configuration.md
   - API Reference:
       - Overview: api/index.md
   - Development:
-      - Phase 1 Log: development/phase1-log.md
-      - Phase 2 Log: development/phase2-log.md
       - Contributing: development/contributing.md
-  - Testing:
-      - Test 9 Summary: testing/test9-summary.md
+      - Architecture Decisions:
+          - Overview: adr/README.md
+          - ADR-001: adr/001-tiered-transcription.md
+          - ADR-002: adr/002-auto-editor-unification.md
   - Research:
       - GitHub Research: research/github-research.md
       - Feature Brainstorm: research/feature-brainstorm.md
       - Project Plan: architecture/project-plan.md
+      - Cloud Service Plan: cloud_service_plan.md
+  - Reports:
+      - Test Report: TEST_REPORT.md
+      - Integration Guide: INTEGRATION.md
+      - Code Review: CODE_REVIEW_REPORT.md
 
 extra:
   social:

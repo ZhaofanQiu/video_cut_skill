@@ -5,11 +5,11 @@
 ## Quick Links
 
 - [GitHub Repository](https://github.com/ZhaofanQiu/video_cut_skill)
-- [Installation](installation.md)
-- [Quick Start](quickstart.md)
+- [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Installation and quick start
 - [Model Management](models.md)
 - [API Reference](api/index.md)
 - [Testing Guide](testing-guide.md)
+- [Configuration](configuration.md)
 
 ## Features
 
@@ -25,7 +25,13 @@
 - ✨ **Motion Graphics**: Dynamic text, shapes, easing animations
 - 🎬 **One-Click Editing**: AutoEditor automation
 
-### 🚧 Phase 3: Advanced Features (Planned)
+### ✅ Phase 3: Production Features
+- 🚀 **GPU Acceleration**: CUDA auto-detection
+- 💾 **Cache System**: Transcription and scene detection caching
+- 🔊 **Audio Enhancement**: LUFS normalization, noise reduction
+- 🛡️ **Error Handling**: Structured logging, graceful degradation
+
+### 🚧 Phase 4: Advanced Features (Planned)
 - 🎨 Color grading, LUT filters
 - 🔊 Audio enhancement, beat detection
 - 🧠 Generative titles/summaries
@@ -37,11 +43,11 @@
 git clone https://github.com/ZhaofanQiu/video_cut_skill.git
 cd video_cut_skill
 
-# Install dependencies
-pip install -r requirements.txt
+# Install Python package
+pip install -e .
 ```
 
-See [Installation Guide](installation.md) for detailed instructions.
+See [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) for detailed instructions.
 
 ## Quick Start
 
@@ -92,23 +98,27 @@ text = TextElement(
 )
 ```
 
-See [Quick Start](quickstart.md) for more examples.
+See [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) for more examples.
 
 ## Documentation Structure
 
 ### Getting Started
-- [Installation](installation.md) - Setup and dependencies
-- [Quick Start](quickstart.md) - Basic usage
+- [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Installation and quick start
 - [Model Management](models.md) - Whisper model download guide
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
+- [Configuration](configuration.md) - Complete configuration reference
 
 ### Development
 - [Testing Guide](testing-guide.md) - How to run tests
-- [Phase 1 Log](development/phase1-log.md) - Core foundation development
-- [Phase 2 Log](development/phase2-log.md) - Smart features development
+- [Architecture Decisions](adr/README.md) - Design decision records (ADR)
 
 ### API Reference
 - [Core API](api/index.md) - FFmpeg wrapper and models
+
+### Reports
+- [Test Report](TEST_REPORT.md) - Complete test results
+- [Integration Guide](INTEGRATION.md) - Integration documentation
+- [Code Review Report](CODE_REVIEW_REPORT.md) - Code quality analysis
 
 ## Model Management
 
@@ -127,21 +137,25 @@ See [Model Management](models.md) for details.
 ## Testing
 
 ```bash
-# Phase 1 tests
-python tests/integration/test_phase1.py
+# Run all tests
+pytest tests/ -v
 
-# Phase 2 tests
-python tests/integration/test_phase2.py
-
-# Unit tests
+# Unit tests only
 pytest tests/unit/ -v
+
+# Integration tests
+pytest tests/integration/ -v
 ```
 
 ## Version History
 
+See [CHANGELOG](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/CHANGELOG.md) for complete version history.
+
+- **v0.3.1** (2026-03-14) - Unified AutoEditor, type safety, documentation
+- **v0.3.0** (2026-03-14) - SmartTranscriber, tiered transcription strategy
 - **v0.2.0** (2026-03-14) - Phase 2: AI Analysis, Strategy, Motion Graphics
 - **v0.1.0** (2026-03-13) - Phase 1: Core foundation
 
 ## License
 
-MIT License - See [LICENSE](../LICENSE) for details.
+MIT License - See [LICENSE](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/LICENSE) for details.

@@ -178,6 +178,6 @@ Expected sizes:
 
 ## See Also
 
-- [Installation Guide](installation.md)
+- [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Installation and quick start
 - [API Reference](api/index.md)
 - [Whisper GitHub](https://github.com/openai/whisper)

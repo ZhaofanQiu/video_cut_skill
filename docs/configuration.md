@@ -17,7 +17,6 @@ config = EditConfig(
     whisper_model="auto",        # Whisper model for transcription
     highlight_keywords=[],       # Keywords for highlight extraction
     context_seconds=2.0,         # Context padding for highlights
-    use_smart_transcriber=True,  # Use smart transcription mode
 )
 ```
 
@@ -32,7 +31,54 @@ config = EditConfig(
 | `whisper_model` | `str` | `"base"` | Whisper model size. Options: `"auto"`, `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"` |
 | `highlight_keywords` | `List[str]` | `[]` | Keywords to search for highlight extraction |
 | `context_seconds` | `float` | `2.0` | Seconds of padding around highlight segments |
-| `use_smart_transcriber` | `bool` | `True` | Use smart transcription with dynamic model selection |
+
+## AutoEditor Analysis Modes
+
+AutoEditor supports two analysis modes via the `analysis_mode` parameter:
+
+### Audio Analysis Mode (Default)
+
+```python
+from video_cut_skill import AutoEditor
+
+editor = AutoEditor(analysis_mode="audio")  # Default
+```
+
+**Features:**
+- Speech recognition with Whisper
+- Dynamic model selection (auto/base/tiny)
+- Audio stream detection
+- Keyword-based highlight extraction
+
+**Best for:** Interviews, podcasts, tutorials, speech-heavy content
+
+### Visual Analysis Mode
+
+```python
+from video_cut_skill import AutoEditor
+
+editor = AutoEditor(analysis_mode="visual")
+```
+
+**Features:**
+- Scene detection with PySceneDetect
+- Shot boundary detection
+- Visual continuity analysis
+- `cut_by_scenes()` method available
+
+**Best for:** Movies, MVs, scene-based content
+
+### Mode Comparison
+
+| Feature | Audio Analysis | Visual Analysis |
+|---------|----------------|-----------------|
+| Initialization | `AutoEditor(analysis_mode="audio")` | `AutoEditor(analysis_mode="visual")` |
+| Speech recognition | ✅ | ❌ |
+| Dynamic model selection | ✅ | ❌ |
+| Scene detection | ❌ | ✅ |
+| `cut_by_scenes()` | ❌ | ✅ |
+| `process_video()` | ✅ | ✅ |
+| `extract_highlights()` | ✅ | ✅ |
 
 ## Whisper Models
 
@@ -50,7 +96,7 @@ Available Whisper models and their characteristics:
 
 ### Model Selection Strategy
 
-When using `whisper_model="auto"` (smart mode):
+When using `whisper_model="auto"` (audio analysis mode):
 
 ```python
 if video_duration < 300:  # < 5 minutes
@@ -246,8 +292,8 @@ setup_structured_logging(
     format="json",
 )
 
-# Create editor
-editor = AutoEditor(use_smart_transcriber=True)
+# Create editor with audio analysis mode
+editor = AutoEditor(analysis_mode="audio")
 
 # Configure processing
 config = EditConfig(
@@ -265,6 +311,6 @@ result = editor.process_video("input.mp4", config)
 
 ## See Also
 
-- [Quick Start](../README.md#quick-start) - Get started quickly
+- [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Get started quickly
 - [API Reference](api/index.md) - Complete API documentation
-- [Architecture Decisions](adr/) - Design decisions and rationale
+- [Architecture Decisions](adr/README.md) - Design decisions and rationale
