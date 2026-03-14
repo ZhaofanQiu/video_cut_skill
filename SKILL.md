@@ -282,6 +282,70 @@ shutil.copy("video.mp4", "video.mp4.bin")
 # Recipient renames back to .mp4 after download
 ```
 
+## 7. Smart Transcriber - 智能转录 (新增 v0.3.1)
+
+Intelligent transcription with dynamic model selection and silent video detection.
+
+### 7.1 Basic Usage
+
+```python
+from video_cut_skill.core.smart_transcriber import SmartTranscriber, ModelSize
+
+transcriber = SmartTranscriber()
+
+# Auto-select model based on video duration
+result = transcriber.transcribe("video.mp4")
+
+if result.error:
+    print(f"Error: {result.error}")
+else:
+    print(f"Text: {result.text}")
+    print(f"Model used: {result.model_used}")
+    print(f"Segments: {len(result.segments)}")
+```
+
+### 7.2 Silent Video Detection
+
+```python
+# Automatically detect videos without audio
+result = transcriber.transcribe("silent_video.mp4")
+
+if result.error:
+    # Friendly error message:
+    # 【无音频】该视频没有音频轨道，无法进行语音识别。请检查：
+    #   1. 视频是否包含声音
+    #   2. 视频文件是否损坏
+    #   3. 尝试使用其他视频文件
+    print(result.error)
+```
+
+### 7.3 Tiered Transcription Strategy
+
+```python
+# Step 1: Fast analysis with TINY model
+rough_result = transcriber.transcribe(
+    "long_video.mp4",
+    model=ModelSize.TINY
+)
+
+# Extract highlight timestamps...
+
+# Step 2: Precise transcription with BASE model
+final_result = transcriber.transcribe(
+    "highlight_clip.mp4",
+    model=ModelSize.BASE
+)
+```
+
+### 7.4 Model Selection Guide
+
+| Model | Size | Speed | Memory | Best For |
+|-------|------|-------|--------|----------|
+| tiny | ~39M | ~10x | ~1GB | Long video analysis |
+| base | ~74M | ~7x | ~1GB | Short clips, output videos |
+
+**Note**: small/medium/large models require 2GB+/5GB+/10GB+ memory and may not work on low-memory systems.
+
 ## Troubleshooting
 
 ### FFmpeg Not Found

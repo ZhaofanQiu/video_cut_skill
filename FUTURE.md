@@ -19,6 +19,78 @@ Video Cut Skill 的长期路线图和功能规划。
 
 ---
 
+## Phase 3.5 补充计划 (2026-03)
+
+基于测试发现的问题，补充以下优化：
+
+### 任务队列与并发控制 (P1)
+
+**问题**: 当前无并发控制，多视频同时处理可能导致内存不足
+
+**解决方案**:
+```python
+class TaskQueue:
+    """视频处理任务队列"""
+    
+    def __init__(self, max_concurrent: int = 2):
+        self.max_concurrent = max_concurrent
+        self.queue = []
+        self.running = []
+```
+
+**配置**:
+```yaml
+queue:
+  max_concurrent: 2        # 最大并发数
+  max_queue_size: 10       # 队列最大长度
+  timeout_seconds: 3600    # 任务超时时间
+  retry_count: 2           # 失败重试次数
+```
+
+**时间**: 2026-03 (1-2天)
+
+---
+
+### 云端转录服务 (P1)
+
+**问题**: 本地仅支持 tiny/base 模型，无法满足高质量转录需求
+
+**解决方案**: 集成阿里云语音识别 API
+
+| 功能 | 阿里云服务 | 优势 |
+|------|-----------|------|
+| **语音识别** | 阿里云智能语音交互 | 中文优化好，价格低 |
+| **大模型文本** | 阿里云百炼/通义千问 | 中文场景强 |
+| **高光提取** | 通义千问 + 自研算法 | 语义理解 + 时间戳对齐 |
+| **画面理解** | 阿里云视觉智能 | 视频分析、场景检测 |
+
+**统一接口设计**:
+```python
+class CloudServiceClient:
+    """统一云端服务客户端"""
+    
+    def __init__(self, provider: str = "aliyun", api_key: str = None):
+        self.provider = provider
+        self.api_key = api_key
+    
+    def transcribe(self, audio_path: str):
+        """语音识别 - 支持 large-v3 等高质量模型"""
+        if self.provider == "aliyun":
+            return self._aliyun_transcribe(audio_path)
+```
+
+**成本估算** (阿里云):
+| 功能 | 单价 | 7分钟视频成本 |
+|------|------|--------------|
+| 语音识别 | ￥0.006/秒 | ￥2.5 |
+| 大模型调用 | ￥0.006/千token | ￥0.1 |
+| 画面分析 | ￥0.1/分钟 | ￥0.7 |
+| **总计** | - | **￥3.3/视频** |
+
+**时间**: 2026-03~04 (2-3周)
+
+---
+
 ## Phase 4: 智能功能深化 (v0.4.0)
 
 **时间**: 2026-03 ~ 2026-06  
