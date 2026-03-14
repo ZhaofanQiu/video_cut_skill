@@ -45,7 +45,7 @@ jobs:
       - name: Format check with black
         run: |
           black --version
-          black --diff src tests || true
+          black src tests
           black --check src tests
 
       - name: Type check with mypy
