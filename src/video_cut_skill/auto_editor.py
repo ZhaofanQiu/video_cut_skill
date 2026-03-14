@@ -3,10 +3,10 @@
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 from video_cut_skill.ai.scene_detector import SceneDetectionResult, SceneDetector
-from video_cut_skill.ai.transcriber import Transcriber, TranscriptResult
+from video_cut_skill.ai.transcriber import Transcriber
 from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
 from video_cut_skill.core.smart_transcriber import ModelSize, SmartTranscriber
 
@@ -85,11 +85,8 @@ class AutoEditor:
         # 向后兼容处理
         if use_smart_transcriber is not None:
             import warnings
-            warnings.warn(
-                "use_smart_transcriber is deprecated, use analysis_mode='audio' or 'visual'",
-                DeprecationWarning,
-                stacklevel=2
-            )
+
+            warnings.warn("use_smart_transcriber is deprecated, use analysis_mode='audio' or 'visual'", DeprecationWarning, stacklevel=2)
             analysis_mode = "audio" if use_smart_transcriber else "visual"
 
         if analysis_mode not in ("audio", "visual"):
@@ -121,12 +118,8 @@ class AutoEditor:
         """检查视频是否有音频流."""
         if self.analysis_mode == "audio" and self._smart_transcriber:
             return self._smart_transcriber.has_audio_stream(video_path)
-        # 视觉分析模式：简单检查
-        try:
-            info = self.ffmpeg.get_video_info(Path(video_path))
-            return info.get("has_audio", True)
-        except Exception:
-            return True  # 默认假设有音频
+        # 视觉分析模式：不进行音频检查，直接返回 True
+        return True
 
     def _transcribe(
         self,
@@ -175,10 +168,7 @@ class AutoEditor:
             basic_result = transcriber.transcribe(Path(video_path))
             transcript_dict = {
                 "text": " ".join([s.text for s in basic_result.segments]),
-                "segments": [
-                    {"start": s.start, "end": s.end, "text": s.text}
-                    for s in basic_result.segments
-                ],
+                "segments": [{"start": s.start, "end": s.end, "text": s.text} for s in basic_result.segments],
                 "language": basic_result.language,
                 "model_used": config.whisper_model,
             }
@@ -244,7 +234,7 @@ class AutoEditor:
                     duration=duration,
                     error=error or "转录失败",
                 )
-            print(f"   ✓ 转录完成")
+            print("   ✓ 转录完成")
             print(f"     模型: {transcript.get('model_used', 'unknown')}")
             print(f"     片段: {len(transcript.get('segments', []))}")
             print(f"     语言: {transcript.get('language', 'unknown')}")
@@ -264,7 +254,7 @@ class AutoEditor:
             output_path = video_path.parent / f"{video_path.stem}{mode_suffix}{video_path.suffix}"
 
         # 6. 处理视频
-        print(f"\n5️⃣  生成输出...")
+        print("\n5️⃣  生成输出...")
         temp_path = self.work_dir / f"temp_{video_path.name}"
 
         # 6a. 如果指定了目标时长，进行剪辑
@@ -279,6 +269,7 @@ class AutoEditor:
         else:
             # 复制原文件
             import shutil
+
             shutil.copy(video_path, temp_path)
 
         # 6b. 添加字幕（如果需要）
@@ -292,11 +283,12 @@ class AutoEditor:
 
         # 6c. 移动到最终输出路径
         import shutil
+
         shutil.move(temp_path, output_path)
 
         # 7. 提取高光（如果需要）
         if config.highlight_keywords and transcript:
-            print(f"\n6️⃣  提取高光片段...")
+            print("\n6️⃣  提取高光片段...")
             highlights = self._extract_highlights(transcript, config.highlight_keywords)
             print(f"   找到 {len(highlights)} 个高光片段")
 
@@ -430,6 +422,7 @@ class AutoEditor:
             self.ffmpeg.concatenate_clips(clip_paths, final_path)
         else:
             import shutil
+
             shutil.copy(clips[0], final_path)
 
         print(f"✅ 高光视频: {final_path}")
@@ -451,12 +444,14 @@ class AutoEditor:
                 # 添加上下文
                 start = max(0, seg.get("start", 0) - context_seconds)
                 end = seg.get("end", 0) + context_seconds
-                highlights.append({
-                    "start": start,
-                    "end": end,
-                    "text": text,
-                    "score": score,
-                })
+                highlights.append(
+                    {
+                        "start": start,
+                        "end": end,
+                        "text": text,
+                        "score": score,
+                    }
+                )
 
         # 按得分排序，取前5
         highlights.sort(key=lambda x: x["score"], reverse=True)

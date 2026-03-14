@@ -63,8 +63,7 @@ class CacheManager:
     def _init_db(self) -> None:
         """初始化数据库."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS cache (
                     key TEXT PRIMARY KEY,
                     data_path TEXT NOT NULL,
@@ -73,8 +72,7 @@ class CacheManager:
                     metadata TEXT,
                     file_hash TEXT
                 )
-                """
-            )
+                """)
             conn.commit()
 
     def _get_file_hash(self, file_path: Union[str, Path]) -> str:
