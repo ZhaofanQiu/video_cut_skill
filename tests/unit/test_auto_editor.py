@@ -342,7 +342,8 @@ class TestAutoEditorSmartMode:
                 output_path=output_path,
             )
 
-        assert result == output_path
+        assert result.output_path == output_path
+        assert result.error is None
         editor._transcribe.assert_called_once()
         editor.ffmpeg.cut_clip.assert_called_once()
 

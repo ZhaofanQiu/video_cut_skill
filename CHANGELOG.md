@@ -7,21 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-16
+
 ### Added
-- **New API**: `analysis_mode` parameter replaces `use_smart_transcriber`
-  - `"audio"` (default): Audio analysis mode - speech recognition, dynamic model selection
-  - `"visual"`: Visual analysis mode - scene detection, shot segmentation
-  - Backward compatibility: `use_smart_transcriber` still works with deprecation warning
-- Hybrid mode planned for future release (combining both audio and visual analysis)
+- **InteractiveEditor**: 全新交互式视频编辑器 (v0.4.0 核心功能)
+  - `analyze()`: 视频分析和语义理解，支持阿里云 Paraformer/Qwen3-ASR-Flash
+  - `edit()`: 自然语言指令编辑，智能理解剪辑意图
+  - `confirm_edit()`: 确认并执行剪辑策略
+  - `feedback()`: 多轮反馈优化，支持迭代精调
+- **阿里云 ASR 集成**: 支持多模型语音识别
+  - `paraformer-realtime-v2`: 默认稳定模型
+  - `qwen3-asr-flash-realtime`: 更高准确率推荐模型
+- **CostGuardian**: 实时成本估算和用户确认机制
+  - 视频时长检查，超长视频需要确认
+  - 成本估算，超额成本需要确认
+  - 自动降级策略，无 API Key 时回退到本地 Whisper
+- **SessionManager**: 会话持久化和管理
+  - 会话状态跟踪 (CREATED -> ANALYZED -> EDITING -> COMPLETED)
+  - 语义数据缓存，避免重复转录
+  - 会话历史记录
+- **智能字幕**: LLM 驱动的字幕断句和优化
+  - 支持横屏/竖屏不同字数限制
+  - 语义断句，避免截断句子
+- **FileUploader**: 阿里云 OSS 文件上传支持
 
 ### Changed
-- **BREAKING**: `AutoEditor(use_smart_transcriber=...)` → `AutoEditor(analysis_mode="audio"/"visual")`
-  - Clear naming reflects actual capabilities
-  - Audio mode: SmartTranscriber for speech-based content
-  - Visual mode: SceneDetector for visual-based content
+- **工作目录**: AutoEditor 默认使用临时目录而非当前目录，避免污染项目
+- **配置验证**: API Key 缺失时改为警告而非错误，支持纯本地 Whisper 模式
+- **analysis_mode**: 更清晰的新 API 替代 `use_smart_transcriber`
+  - `"audio"`: 音频分析模式，适合访谈、教学、播客
+  - `"visual"`: 视觉分析模式，适合电影、MV
+
+### Fixed
+- 修复单元测试: `test_extract_highlights_smart_mode` 断言修正
+- 修复集成测试: `test_auto_editor` 使用临时目录避免文件冲突
+- 修复字幕生成: 优化字幕断句逻辑
 
 ### Deprecated
-- `use_smart_transcriber` parameter - use `analysis_mode` instead
+- `use_smart_transcriber` 参数: 使用 `analysis_mode` 替代
+- `interactive_editor_v2.py`: 已删除，功能合并到主编辑器
 
 ## [0.3.1] - 2026-03-14
 

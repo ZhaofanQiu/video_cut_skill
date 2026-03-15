@@ -391,3 +391,88 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - GitHub: https://github.com/ZhaofanQiu/video_cut_skill
 - Documentation: https://zhaofanqiu.github.io/video_cut_skill/
+
+---
+
+## 🆕 Interactive Editing (v0.4.0+)
+
+**对话式交互剪辑**，支持自然语言指令和多轮迭代优化。
+
+### Quick Start
+
+```python
+from video_cut_skill import InteractiveEditor
+
+# 创建交互式编辑器
+editor = InteractiveEditor()
+
+# Step 1: 分析视频（自动转录+语义分析）
+response = editor.analyze("input.mp4")
+print(response.message)
+# → 分析完成。视频共12个片段，时长580秒，识别主题：技术, 商业, 创业...
+
+# Step 2: 发送剪辑指令（自然语言）
+session_id = response.data["session_id"]
+response = editor.edit(session_id, "保留关于AI的部分，控制在3分钟内")
+
+# Step 3: 确认并执行
+if response.state == "awaiting_confirm":
+    print(f"预估成本: ¥{response.data['estimated_cost']}")
+    response = editor.confirm_edit(session_id)
+
+print(f"剪辑完成: {response.data['output_path']}")
+
+# Step 4: 迭代优化
+response = editor.feedback(session_id, "开头太长了，从第2段开始")
+```
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **本地文件转录** | Paraformer 实时语音识别，无需OSS配置 |
+| **自然语言指令** | "剪掉啰嗦的部分", "保留关于产品介绍的段落" |
+| **LLM语义理解** | 分析内容含义，不只是关键词匹配 |
+| **多轮迭代** | 支持反复调整剪辑策略 |
+| **成本透明** | 预估成本，超过阈值需确认 |
+| **会话状态** | 单视频多次编辑状态保持 |
+
+### Agent Integration
+
+```python
+# OpenClaw Agent 工具定义
+tools:
+  video_cut_analyze:
+    description: 分析视频内容，准备剪辑
+    parameters:
+      video_path: string
+    returns:
+      - session_id: string
+      - segment_count: int
+      - topics: list
+
+  video_cut_edit:
+    description: 执行剪辑指令
+    parameters:
+      session_id: string
+      instruction: string  # 自然语言指令
+    returns:
+      - status: string
+      - output_path: string
+      - estimated_cost: float
+```
+
+### Configuration
+
+```yaml
+# config.yaml
+model:
+  provider: "aliyun"
+  transcribe_model: "paraformer-realtime-v2"  # 支持本地文件
+  llm_model: "qwen-max"
+
+cost_control:
+  confirm_thresholds:
+    max_cost_yuan: 3.0
+    max_video_duration_minutes: 30
+```

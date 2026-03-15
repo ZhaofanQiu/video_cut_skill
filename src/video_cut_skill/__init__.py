@@ -24,6 +24,33 @@ from video_cut_skill.auto_editor import (
 from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
 from video_cut_skill.core.models import Clip, Project, Timeline, Track
 
+# Interactive Editing (New in v0.4.0)
+from video_cut_skill.core.interactive_editor import InteractiveEditor
+from video_cut_skill.core.session_manager import SessionManager
+from video_cut_skill.core.cache import MultiLevelCache
+from video_cut_skill.core.cost_guardian import CostGuardian, CostCheckResult
+from video_cut_skill.core.file_upload import (
+    AliyunFileUploader,
+    FileUploadError,
+    upload_file_for_transcription,
+)
+from video_cut_skill.models import (
+    ContentSegment,
+    VideoSemantics,
+    EditSession,
+    EditStrategy,
+    AgentResponse,
+    AgentAction,
+)
+from video_cut_skill.clients import AliyunClient
+from video_cut_skill.config import load_config, get_config, Config
+from video_cut_skill.exceptions import (
+    VideoCutSkillError,
+    TranscriptionError,
+    LLMError,
+    SessionNotFoundError,
+)
+
 # Motion Graphics
 from video_cut_skill.motion_graphics import (
     EasingFunction,
@@ -59,7 +86,7 @@ from video_cut_skill.utils import (
     setup_structured_logging,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __all__ = [
     # Core
     "FFmpegWrapper",
@@ -82,6 +109,34 @@ __all__ = [
     "EditResult",
     "process_video",
     "extract_highlights",
+    # Interactive Editing (New)
+    "InteractiveEditor",
+    "SessionManager",
+    "MultiLevelCache",
+    "CostGuardian",
+    "CostCheckResult",
+    # File Upload (New)
+    "AliyunFileUploader",
+    "FileUploadError",
+    "upload_file_for_transcription",
+    # Models (New)
+    "ContentSegment",
+    "VideoSemantics",
+    "EditSession",
+    "EditStrategy",
+    "AgentResponse",
+    "AgentAction",
+    # Clients (New)
+    "AliyunClient",
+    # Config (New)
+    "Config",
+    "load_config",
+    "get_config",
+    # Exceptions (New)
+    "VideoCutSkillError",
+    "TranscriptionError",
+    "LLMError",
+    "SessionNotFoundError",
     # Motion Graphics
     "EasingFunction",
     "EasingType",

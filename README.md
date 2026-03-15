@@ -9,7 +9,7 @@
 
 Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提供从原始视频到成片的自动化/半自动化处理能力。
 
-### 当前版本: v0.3.1
+### 当前版本: v0.4.0
 
 ## 核心特性
 
@@ -31,7 +31,13 @@ Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提
 - 🔊 **音频增强**: LUFS 音量标准化、降噪
 - 🛡️ **错误处理**: 结构化日志、优雅降级
 
-### 🚧 Phase 4: 智能功能深化 (规划中)
+### ✅ Phase 4: 交互式功能 (已完成 v0.4.0)
+- 🎙️ **交互式编辑器**: InteractiveEditor 多轮对话剪辑
+- 💰 **成本 guardian**: 实时成本估算和确认
+- 💾 **会话管理**: 持久化会话状态和历史
+- 🔗 **阿里云集成**: Paraformer/Qwen3-ASR-Flash 语音识别
+
+### 🚧 Phase 5: 高级功能 (规划中)
 - 🎵 节拍检测、智能卡点
 - 🎨 高级字幕动画
 - 🧠 生成式 AI 集成
@@ -90,6 +96,40 @@ result = editor.process_video(
 )
 print(f"Output: {result.output_path}")
 print(f"Processing time: {result.processing_time:.1f}s")
+```
+
+### InteractiveEditor - 交互式剪辑 (v0.4.0+)
+
+适合需要多轮对话、逐步精调的剪辑场景：
+
+```python
+from video_cut_skill import InteractiveEditor, Config
+
+# 创建编辑器
+config = Config()
+editor = InteractiveEditor(config=config)
+
+# 1. 分析视频 - 自动转录和语义分析
+response = editor.analyze("input.mp4")
+session_id = response.data["session_id"]
+
+# 2. 编辑指令 - 自然语言描述需求
+edit_response = editor.edit(
+    session_id, 
+    "提取关于 AI 技术的关键段落，时长控制在 30 秒"
+)
+
+# 3. 确认并导出
+if edit_response.state == "awaiting_confirm":
+    confirm_response = editor.confirm_edit(session_id)
+    output_path = confirm_response.data["output_path"]
+    print(f"导出成功: {output_path}")
+
+# 4. 反馈优化（可选）
+feedback_response = editor.feedback(
+    session_id,
+    "保留更多开头部分"
+)
 ```
 
 ### 按场景切割（仅视觉分析模式）

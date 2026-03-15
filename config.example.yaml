@@ -1,0 +1,70 @@
+# Video Cut Skill Configuration
+# Copy this file to video_cut_skill.yaml and update with your settings
+
+model:
+  provider: "aliyun"
+  
+  # Aliyun DashScope API Key
+  # Can also be set via environment variable: DASHSCOPE_API_KEY
+  api_key: "${DASHSCOPE_API_KEY}"
+  
+  # Transcription settings
+  transcribe_model: "paraformer-v2"  # paraformer-v2 or fun-asr
+  llm_model: "qwen-max"  # qwen-max, qwen-max-longcontext, qwen-turbo
+  language_hints: ["zh", "en"]
+
+cost_control:
+  # Thresholds for requiring user confirmation
+  confirm_thresholds:
+    max_video_duration_minutes: 30  # Videos longer than this need confirmation
+    max_cost_yuan: 3.0  # Cost estimates above this need confirmation
+  
+  # Auto downgrade settings
+  auto_downgrade:
+    enabled: true
+    when_no_api_key: true
+    when_cost_exceeds: 5.0
+  
+  # Cache settings
+  cache:
+    enabled: true
+    transcribe_ttl_hours: 168  # 7 days
+    semantics_ttl_hours: 72    # 3 days
+    max_cache_size_mb: 1024
+
+session:
+  # Session persistence
+  persistence:
+    enabled: true
+    cache_dir: "~/.video_cut_skill"
+    max_sessions: 50
+    ttl_days: 7
+  
+  # Context management
+  context:
+    max_history_rounds: 10
+
+editing:
+  # Default editing parameters
+  default:
+    remove_fillers: true
+    optimize_pauses: true
+    pause_threshold_seconds: 0.5
+  
+  # Segment aggregation
+  aggregation:
+    min_segment_duration: 3.0   # Minimum segment duration in seconds
+    max_segment_duration: 30.0  # Maximum segment duration in seconds
+    pause_boundary_threshold: 1.0  # Pause threshold for segment boundary
+  
+  # Output defaults
+  output:
+    default_aspect_ratio: "16:9"
+    add_subtitles: true
+
+visual:
+  # Visual transcription (minimal implementation)
+  enabled: false
+  scene_detector: "content"  # content, threshold, or adaptive
+  min_scene_duration: 1.0
+  describe_keyframes: false  # Disabled by default to save costs
