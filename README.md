@@ -59,6 +59,26 @@ sudo apt install ffmpeg libavcodec-dev libavformat-dev libswscale-dev
 pip install -e .
 ```
 
+### 配置阿里云 API Key (可选但推荐)
+
+如需使用 **InteractiveEditor** 或 **阿里云 ASR** 功能，需要配置阿里云 API Key：
+
+```bash
+# 方式1: 环境变量
+export DASHSCOPE_API_KEY="your-api-key-here"
+
+# 方式2: 配置文件 (推荐)
+cp config.example.yaml config.yaml
+# 编辑 config.yaml，填入你的 API Key
+```
+
+获取阿里云 API Key：
+1. 访问 [阿里云 DashScope 控制台](https://dashscope.aliyun.com/)
+2. 注册/登录账号
+3. 在"API Key 管理"中创建新的 API Key
+
+> **注意**: 未配置 API Key 时，系统会自动回退到本地 Whisper 模型，但 InteractiveEditor 的智能字幕优化功能将不可用。
+
 ### 预下载模型（推荐）
 
 ```bash

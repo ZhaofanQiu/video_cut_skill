@@ -6,8 +6,8 @@
 
 - [GitHub Repository](https://github.com/ZhaofanQiu/video_cut_skill)
 - [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Installation and quick start
-- [ROADMAP](../ROADMAP.md) - Future development plans
-- [CHANGELOG](../CHANGELOG.md) - Version history
+- [ROADMAP](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/ROADMAP.md) - Future development plans
+- [CHANGELOG](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/CHANGELOG.md) - Version history
 - [Model Management](models.md)
 - [API Reference](api/index.md)
 - [Testing Guide](testing-guide.md)
@@ -44,7 +44,7 @@
 - 🎨 Advanced subtitle animations
 - 🧠 Generative AI integration
 
-See [ROADMAP](../ROADMAP.md) for detailed future plans.
+See [ROADMAP](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/ROADMAP.md) for detailed future plans.
 
 ## Installation
 
@@ -120,8 +120,8 @@ See [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) 
 
 ### Getting Started
 - [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) - Installation and quick start
-- [ROADMAP](../ROADMAP.md) - Development roadmap and future plans
-- [CHANGELOG](../CHANGELOG.md) - Version history
+- [ROADMAP](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/ROADMAP.md) - Development roadmap and future plans
+- [CHANGELOG](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/CHANGELOG.md) - Version history
 - [Model Management](models.md) - Whisper model download guide
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 - [Configuration](configuration.md) - Complete configuration reference
@@ -129,7 +129,7 @@ See [README](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/README.md) 
 ### Development
 - [Testing Guide](testing-guide.md) - How to run tests
 - [Architecture Decisions](adr/README.md) - Design decision records (ADR)
-- [Contributing](../docs/development/contributing.md) - How to contribute
+- [Contributing](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/docs/development/contributing.md) - How to contribute
 
 ### API Reference
 - [Core API](api/index.md) - FFmpeg wrapper and models
@@ -170,7 +170,7 @@ Current status: **433 passed, 4 skipped**
 
 ## Version History
 
-See [CHANGELOG](../CHANGELOG.md) for complete version history.
+See [CHANGELOG](https://github.com/ZhaofanQiu/video_cut_skill/blob/main/CHANGELOG.md) for complete version history.
 
 - **v0.4.0** (2026-03-16) - InteractiveEditor, Aliyun ASR, CostGuardian
 - **v0.3.1** (2026-03-14) - Unified AutoEditor, type safety, documentation
