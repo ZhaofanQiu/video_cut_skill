@@ -13,17 +13,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 # Set test API key
 os.environ["DASHSCOPE_API_KEY"] = os.getenv("DASHSCOPE_API_KEY", "test-key")
 
-from video_cut_skill.models import (
-    ContentSegment,
-    EditSession,
-    EditStrategy,
-    AgentResponse,
-    SegmentType,
-)
-from video_cut_skill.models.semantic import VideoSemantics, TranscriptionResult, Sentence
-from video_cut_skill.core.session_manager import SessionManager
 from video_cut_skill.core.cache import MultiLevelCache
 from video_cut_skill.core.cost_guardian import CostGuardian
+from video_cut_skill.core.session_manager import SessionManager
+from video_cut_skill.models import (
+    AgentResponse,
+    ContentSegment,
+)
+from video_cut_skill.models.semantic import VideoSemantics
 
 
 class TestSemanticModels(unittest.TestCase):
@@ -69,7 +66,7 @@ class TestSemanticModels(unittest.TestCase):
             duration=20.0,
             segments=segments,
         )
-        
+
         results = semantics.search_by_keyword("AI")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].segment_id, "seg_0")
@@ -86,6 +83,7 @@ class TestSessionManager(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_create_and_get_session(self):
@@ -109,11 +107,11 @@ class TestSessionManager(unittest.TestCase):
             f.write("dummy")
 
         session_id = self.manager.create_session(video_path)
-        
+
         # Create new manager instance (simulating restart)
         new_manager = SessionManager(cache_dir=Path(self.temp_dir))
         session = new_manager.get_session(session_id)
-        
+
         self.assertIsNotNone(session)
         self.assertEqual(session.video_path, video_path)
 
@@ -124,11 +122,11 @@ class TestCostGuardian(unittest.TestCase):
     def test_check_analyze(self):
         """Test cost check for analysis."""
         guardian = CostGuardian()
-        
+
         # Short video should not require confirmation
         result = guardian.check_analyze("test.mp4", 300)  # 5 minutes
         self.assertFalse(result.requires_confirmation)
-        
+
         # Long video should require confirmation
         result = guardian.check_analyze("test.mp4", 3600)  # 60 minutes
         self.assertTrue(result.requires_confirmation)
@@ -185,6 +183,7 @@ class TestCache(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_cache_operations(self):

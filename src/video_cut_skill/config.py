@@ -1,12 +1,11 @@
 """Configuration management for video cut skill."""
 
 import os
-import yaml
-from pathlib import Path
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from video_cut_skill.exceptions import ConfigurationError
+import yaml
 
 
 @dataclass
@@ -23,11 +22,11 @@ class ModelConfig:
     # - "qwen3-asr-flash-realtime-2026-02-10": Qwen3-ASR-Flash (最新快照版)
     # - "qwen3-asr-flash-realtime-2025-10-27": Qwen3-ASR-Flash (快照版)
     transcribe_model: str = "qwen3-asr-flash-realtime"
-    
+
     # 可选: 上下文提示，用于提升特定术语识别准确率 (仅Qwen3-ASR-Flash支持)
     # 例如: "小米汽车 雷军 新能源 智能网联"
     transcribe_context: Optional[str] = None
-    
+
     llm_model: str = "qwen-max"
     language_hints: List[str] = field(default_factory=lambda: ["zh", "en"])
 
@@ -53,7 +52,7 @@ class CostControlConfig:
     # Cache settings
     cache_enabled: bool = True
     transcribe_ttl_hours: int = 168  # 7 days
-    semantics_ttl_hours: int = 72    # 3 days
+    semantics_ttl_hours: int = 72  # 3 days
     max_cache_size_mb: int = 1024
 
 
@@ -136,7 +135,7 @@ class Config:
             config_path = cls._find_config_file()
 
         if config_path and config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             return cls.from_dict(data)
 
@@ -167,12 +166,11 @@ class Config:
         if self.model.provider == "aliyun" and not self.model.api_key:
             # 改为警告而不是错误，支持本地 Whisper 模式
             import warnings
+
             warnings.warn(
-                "阿里云API Key未配置。LLM功能将不可用，"
-                "但本地Whisper转录仍可正常使用。"
-                "请设置环境变量 DASHSCOPE_API_KEY 或在配置文件中指定。",
+                "阿里云API Key未配置。LLM功能将不可用，" "但本地Whisper转录仍可正常使用。" "请设置环境变量 DASHSCOPE_API_KEY 或在配置文件中指定。",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
     def to_dict(self) -> Dict[str, Any]:

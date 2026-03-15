@@ -1,8 +1,8 @@
 """Semantic models for interactive video editing."""
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class SegmentType(Enum):

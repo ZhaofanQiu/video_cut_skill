@@ -140,6 +140,7 @@ class AutoEditor:
         if self._aliyun_client is None:
             try:
                 from video_cut_skill.clients.aliyun_client import AliyunClient
+
                 self._aliyun_client = AliyunClient()
             except Exception as e:
                 print(f"   ⚠️ 无法初始化阿里云客户端: {e}")
@@ -321,18 +322,10 @@ class AutoEditor:
             # 默认横屏16:9，每行20字；竖屏9:16，每行15字
             is_vertical = config.aspect_ratio == "9:16"
             max_chars = 15 if is_vertical else 20
-            
-            if config.time_ranges and segment_time_offsets:
+
+            if config.time_ranges and segment_time_offsets or config.keep_segments and segment_time_offsets:
                 srt_path = self._generate_subtitles_for_segments(
-                    transcript, 
-                    segment_time_offsets,
-                    max_chars_per_line=max_chars,
-                    aspect_ratio=config.aspect_ratio,
-                    use_llm=True,
-                )
-            elif config.keep_segments and segment_time_offsets:
-                srt_path = self._generate_subtitles_for_segments(
-                    transcript, 
+                    transcript,
                     segment_time_offsets,
                     max_chars_per_line=max_chars,
                     aspect_ratio=config.aspect_ratio,
@@ -340,7 +333,7 @@ class AutoEditor:
                 )
             else:
                 srt_path = self._generate_subtitles(transcript)
-            
+
             if srt_path:
                 subtitled_path = self.work_dir / f"subtitled_{video_path.name}"
                 self.ffmpeg.add_subtitle(temp_path, srt_path, subtitled_path)
@@ -560,6 +553,7 @@ class AutoEditor:
         if not time_ranges:
             # 没有片段，复制原文件
             import shutil
+
             shutil.copy(video_path, output_path)
             return []
 
@@ -585,15 +579,19 @@ class AutoEditor:
             )
             clips.append(clip_path)
 
-            time_offsets.append({
-                "original_start": original_start,
-                "original_end": original_end,
-                "new_start": current_time,
-                "new_end": current_time + segment_duration,
-            })
-            
-            print(f"     片段{i+1}: {original_start:.1f}s - {original_end:.1f}s (新位置: {current_time:.1f}s - {current_time + segment_duration:.1f}s)")
-            
+            time_offsets.append(
+                {
+                    "original_start": original_start,
+                    "original_end": original_end,
+                    "new_start": current_time,
+                    "new_end": current_time + segment_duration,
+                }
+            )
+
+            print(
+                f"     片段{i+1}: {original_start:.1f}s - {original_end:.1f}s (新位置: {current_time:.1f}s - {current_time + segment_duration:.1f}s)"
+            )
+
             current_time += segment_duration
 
         # 拼接片段
@@ -602,13 +600,15 @@ class AutoEditor:
             self.ffmpeg.concatenate_clips(clip_paths, output_path)
         elif len(clips) == 1:
             import shutil
+
             shutil.copy(clips[0], output_path)
         else:
             # 没有有效片段，复制原文件
             import shutil
+
             shutil.copy(video_path, output_path)
             return []
-        
+
         return time_offsets
 
     def _cut_by_segments(
@@ -630,6 +630,7 @@ class AutoEditor:
         if not segments:
             # 没有段落，复制原文件
             import shutil
+
             shutil.copy(video_path, output_path)
             return []
 
@@ -652,15 +653,19 @@ class AutoEditor:
             )
             clips.append(clip_path)
 
-            time_offsets.append({
-                "original_start": original_start,
-                "original_end": original_end,
-                "new_start": current_time,
-                "new_end": current_time + segment_duration,
-            })
-            
-            print(f"     片段{i+1}: {original_start:.1f}s - {original_end:.1f}s (新位置: {current_time:.1f}s - {current_time + segment_duration:.1f}s)")
-            
+            time_offsets.append(
+                {
+                    "original_start": original_start,
+                    "original_end": original_end,
+                    "new_start": current_time,
+                    "new_end": current_time + segment_duration,
+                }
+            )
+
+            print(
+                f"     片段{i+1}: {original_start:.1f}s - {original_end:.1f}s (新位置: {current_time:.1f}s - {current_time + segment_duration:.1f}s)"
+            )
+
             current_time += segment_duration
 
         # 拼接片段
@@ -669,13 +674,15 @@ class AutoEditor:
             self.ffmpeg.concatenate_clips(clip_paths, output_path)
         elif len(clips) == 1:
             import shutil
+
             shutil.copy(clips[0], output_path)
         else:
             # 没有有效片段，复制原文件
             import shutil
+
             shutil.copy(video_path, output_path)
             return []
-        
+
         return time_offsets
 
     def _extract_highlights(
@@ -734,70 +741,72 @@ class AutoEditor:
         use_llm: bool = True,
     ) -> Optional[Path]:
         """根据剪辑后的段落生成调整过时间戳的SRT字幕文件.
-        
+
         支持使用LLM智能断句，生成语义完整的字幕。
-        
+
         Args:
             transcript: 原始转录结果
             segment_time_offsets: 时间偏移信息列表
             max_chars_per_line: 每行最大字数
             aspect_ratio: 视频比例，"16:9" 或 "9:16"
             use_llm: 是否使用LLM优化断句
-            
+
         Returns:
             SRT字幕文件路径或None
         """
         srt_path = self.work_dir / "temp_subtitles_adjusted.srt"
-        
+
         try:
             # 收集所有选中的词
             all_selected_words = []
-            
+
             for seg in transcript.get("segments", []):
                 seg_start = seg.get("start", 0)
                 seg_end = seg.get("end", 0)
                 words = seg.get("words", [])
-                
+
                 if not words:
                     continue
-                
+
                 # 检查这个句子是否与任何剪辑片段有重叠
                 for offset in segment_time_offsets:
                     clip_start = offset["original_start"]
                     clip_end = offset["original_end"]
                     time_shift = offset["new_start"] - clip_start
-                    
+
                     # 计算交集
                     intersect_start = max(seg_start, clip_start)
                     intersect_end = min(seg_end, clip_end)
-                    
+
                     # 有有效交集
                     if intersect_start < intersect_end:
                         # 收集在交集范围内的词，并调整时间戳
                         for word in words:
                             word_start = word.get("begin_time", 0) / 1000.0
                             word_end = word.get("end_time", 0) / 1000.0
-                            
+
                             # 检查这个词是否在交集内
                             if word_start < intersect_end and word_end > intersect_start:
                                 # 调整时间戳到新视频时间轴
                                 new_begin = int((max(word_start, intersect_start) + time_shift) * 1000)
                                 new_end = int((min(word_end, intersect_end) + time_shift) * 1000)
-                                
-                                all_selected_words.append({
-                                    "text": word.get("text", ""),
-                                    "punctuation": word.get("punctuation", ""),
-                                    "begin_time": new_begin,
-                                    "end_time": new_end,
-                                })
-            
+
+                                all_selected_words.append(
+                                    {
+                                        "text": word.get("text", ""),
+                                        "punctuation": word.get("punctuation", ""),
+                                        "begin_time": new_begin,
+                                        "end_time": new_end,
+                                    }
+                                )
+
             if not all_selected_words:
-                print(f"   ⚠️ 没有匹配到字幕词")
+                print("   ⚠️ 没有匹配到字幕词")
                 return None
-            
+
             # 按时间排序
             all_selected_words.sort(key=lambda x: x["begin_time"])
-            
+
             # 使用LLM优化断句
             if use_llm:
                 client = self._get_aliyun_client()
@@ -812,23 +821,17 @@ class AutoEditor:
                         print(f"   LLM优化完成，生成{len(subtitle_entries)}条字幕")
                     except Exception as e:
                         print(f"   ⚠️ LLM优化失败: {e}，使用回退方案")
-                        subtitle_entries = self._fallback_subtitle_split(
-                            all_selected_words, max_chars_per_line
-                        )
+                        subtitle_entries = self._fallback_subtitle_split(all_selected_words, max_chars_per_line)
                 else:
-                    print(f"   ⚠️ 阿里云客户端未初始化，使用回退方案")
-                    subtitle_entries = self._fallback_subtitle_split(
-                        all_selected_words, max_chars_per_line
-                    )
+                    print("   ⚠️ 阿里云客户端未初始化，使用回退方案")
+                    subtitle_entries = self._fallback_subtitle_split(all_selected_words, max_chars_per_line)
             else:
-                subtitle_entries = self._fallback_subtitle_split(
-                    all_selected_words, max_chars_per_line
-                )
-            
+                subtitle_entries = self._fallback_subtitle_split(all_selected_words, max_chars_per_line)
+
             if not subtitle_entries:
-                print(f"   ⚠️ 没有生成字幕条目")
+                print("   ⚠️ 没有生成字幕条目")
                 return None
-            
+
             # 写入SRT文件
             with open(srt_path, "w", encoding="utf-8") as f:
                 for i, entry in enumerate(subtitle_entries, 1):
@@ -837,48 +840,49 @@ class AutoEditor:
                     f.write(f"{i}\n")
                     f.write(f"{start} --> {end}\n")
                     f.write(f"{entry['text']}\n\n")
-            
+
             print(f"   字幕文件: {srt_path}")
             return srt_path
-            
+
         except Exception as e:
             print(f"⚠️  字幕生成失败: {e}")
             import traceback
+
             traceback.print_exc()
             return None
-    
+
     def _fallback_subtitle_split(
         self,
         words: List[Dict[str, Any]],
         max_chars: int = 20,
     ) -> List[Dict[str, Any]]:
-        """回退方案：简单按字数和标点合并词。"""
-        import re
-        
+        """回退方案：简单按字数和标点合并词。."""
         subtitles = []
         current_text = ""
         current_start = None
         current_end = None
-        
+
         for word in words:
             text = word.get("text", "")
             punct = word.get("punctuation", "")
             begin = word.get("begin_time", 0) / 1000.0
             end = word.get("end_time", 0) / 1000.0
-            
+
             if current_start is None:
                 current_start = begin
-            
+
             # 检查加入这个词后是否超限
             candidate = current_text + text + punct
-            
+
             # 如果超限且当前不为空，保存当前行
             if len(candidate) > max_chars and current_text:
-                subtitles.append({
-                    "text": current_text,
-                    "start": current_start,
-                    "end": current_end,
-                })
+                subtitles.append(
+                    {
+                        "text": current_text,
+                        "start": current_start,
+                        "end": current_end,
+                    }
+                )
                 # 开始新行
                 current_text = text + punct
                 current_start = begin
@@ -886,26 +890,30 @@ class AutoEditor:
             else:
                 current_text = candidate
                 current_end = end
-            
+
             # 如果遇到句末标点且当前行足够长，结束当前行
             if punct in "。？！" and len(current_text) >= max_chars * 0.5:
-                subtitles.append({
-                    "text": current_text,
-                    "start": current_start,
-                    "end": current_end,
-                })
+                subtitles.append(
+                    {
+                        "text": current_text,
+                        "start": current_start,
+                        "end": current_end,
+                    }
+                )
                 current_text = ""
                 current_start = None
                 current_end = None
-        
+
         # 添加最后一行
         if current_text:
-            subtitles.append({
-                "text": current_text,
-                "start": current_start,
-                "end": current_end,
-            })
-        
+            subtitles.append(
+                {
+                    "text": current_text,
+                    "start": current_start,
+                    "end": current_end,
+                }
+            )
+
         return subtitles
 
     @staticmethod

@@ -1,14 +1,12 @@
 """Tests for InteractiveEditor."""
 
 import os
-import pytest
 from unittest.mock import MagicMock, patch
-from pathlib import Path
 
-from video_cut_skill.core.interactive_editor import InteractiveEditor
-from video_cut_skill.models.agent import AgentActionType, AgentResponse
+import pytest
+
 from video_cut_skill.config import Config
-
+from video_cut_skill.core.interactive_editor import InteractiveEditor
 
 # Set dummy API key for tests
 os.environ.setdefault("DASHSCOPE_API_KEY", "sk-test-dummy-key-for-testing")
@@ -25,15 +23,17 @@ class TestInteractiveEditor:
     @pytest.fixture
     def editor(self, config):
         """Create editor with mocked dependencies."""
-        with patch('video_cut_skill.core.smart_transcriber.SmartTranscriber') as mock_transcriber_class, \
-             patch('video_cut_skill.clients.aliyun_client.AliyunClient') as mock_client_class:
-            
+        with (
+            patch("video_cut_skill.core.smart_transcriber.SmartTranscriber") as mock_transcriber_class,
+            patch("video_cut_skill.clients.aliyun_client.AliyunClient") as mock_client_class,
+        ):
+
             # Setup mock instances
             mock_transcriber = MagicMock()
             mock_transcriber_class.return_value = mock_transcriber
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
-            
+
             editor = InteractiveEditor(config=config)
             # Ensure mocks are set
             editor.transcriber = mock_transcriber
@@ -49,7 +49,7 @@ class TestInteractiveEditor:
         """Test analyze with non-existent video."""
         non_existent = tmp_path / "not_exist.mp4"
         response = editor.analyze(str(non_existent))
-        
+
         assert response.state == "error"
         # 实际错误消息是 "分析视频时发生错误" 而不是 "不存在"
         assert "错误" in response.message or "不存在" in response.message
@@ -72,7 +72,7 @@ class TestInteractiveEditor:
     def test_edit_session_not_found(self, editor):
         """Test edit with non-existent session."""
         response = editor.edit("non_existent_id_12345", "提取高光")
-        
+
         assert response.state == "error"
         # 实际错误消息是 "会话不存在或已过期"
         assert "会话" in response.message or "不存在" in response.message

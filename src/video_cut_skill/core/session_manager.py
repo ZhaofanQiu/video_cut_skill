@@ -1,15 +1,15 @@
 """Session manager for interactive video editing."""
 
-import uuid
 import hashlib
 import json
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from video_cut_skill.models.session import EditSession, SessionState
-from video_cut_skill.exceptions import SessionNotFoundError
 from video_cut_skill.config import get_config
+from video_cut_skill.exceptions import SessionNotFoundError
+from video_cut_skill.models.session import EditSession, SessionState
 
 
 class SessionManager:
@@ -254,7 +254,7 @@ class SessionManager:
             return None
 
         try:
-            with open(session_file, "r", encoding="utf-8") as f:
+            with open(session_file, encoding="utf-8") as f:
                 data = json.load(f)
             session = EditSession.from_dict(data)
             # Restore to memory

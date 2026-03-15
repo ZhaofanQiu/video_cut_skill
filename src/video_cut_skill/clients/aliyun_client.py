@@ -1,15 +1,16 @@
 """Aliyun DashScope unified client for transcription and LLM."""
 
-import os
+import contextlib
 import json
-from typing import Optional, List, Dict, Any
+import os
 from http import HTTPStatus
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from video_cut_skill.exceptions import TranscriptionError, LLMError
+from video_cut_skill.exceptions import LLMError, TranscriptionError
 from video_cut_skill.models.semantic import (
-    TranscriptionResult,
     Sentence,
+    TranscriptionResult,
     WordTimestamp,
 )
 
@@ -41,7 +42,7 @@ class AliyunClient:
 
     DEFAULT_TRANSCRIBE_MODEL = "paraformer-realtime-v2"
     DEFAULT_LLM_MODEL = "qwen3.5-plus"
-    
+
     # Supported ASR models
     ASR_MODELS = {
         "paraformer-realtime-v2": "Paraformer实时语音识别",
@@ -62,20 +63,16 @@ class AliyunClient:
         """
         self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                "阿里云API Key未配置。请设置环境变量 DASHSCOPE_API_KEY "
-                "或在初始化时传入api_key参数。"
-            )
+            raise ValueError("阿里云API Key未配置。请设置环境变量 DASHSCOPE_API_KEY " "或在初始化时传入api_key参数。")
 
         # Import dashscope here to avoid dependency issues
         try:
             import dashscope
+
             self._dashscope = dashscope
             self._dashscope.api_key = self.api_key
-        except ImportError:
-            raise ImportError(
-                "使用阿里云功能需要安装dashscope：pip install dashscope"
-            )
+        except ImportError as err:
+            raise ImportError("使用阿里云功能需要安装dashscope：pip install dashscope") from err
 
     def transcribe(
         self,
@@ -83,7 +80,7 @@ class AliyunClient:
         model: str = "paraformer-realtime-v2",
         language_hints: Optional[List[str]] = None,
         context: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> TranscriptionResult:
         """Transcribe audio file using specified ASR model.
 
@@ -98,7 +95,7 @@ class AliyunClient:
                 - "qwen3-asr-flash-realtime-2025-10-27": Qwen3-ASR-Flash (snapshot)
             language_hints: Optional language hints (e.g., ["zh", "en"])
             context: Optional context text for Qwen3-ASR-Flash to improve recognition
-                     of specific terms (e.g., "小米汽车 雷军 造车"). 
+                     of specific terms (e.g., "小米汽车 雷军 造车").
                      Only works with Qwen3-ASR-Flash models.
             **kwargs: Additional parameters for transcription
 
@@ -110,60 +107,37 @@ class AliyunClient:
         """
         # Route to appropriate transcription method based on model
         if model.startswith("qwen3-asr-flash"):
-            return self._transcribe_qwen3_asr(
-                audio_path, 
-                model=model, 
-                language_hints=language_hints,
-                context=context,
-                **kwargs
-            )
+            return self._transcribe_qwen3_asr(audio_path, model=model, language_hints=language_hints, context=context, **kwargs)
         else:
             # Default to Paraformer
-            return self._transcribe_paraformer(
-                audio_path, 
-                language_hints=language_hints,
-                **kwargs
-            )
+            return self._transcribe_paraformer(audio_path, language_hints=language_hints, **kwargs)
 
-    def _transcribe_paraformer(
-        self,
-        audio_path: str,
-        language_hints: Optional[List[str]] = None,
-        **kwargs
-    ) -> TranscriptionResult:
+    def _transcribe_paraformer(self, audio_path: str, language_hints: Optional[List[str]] = None, **kwargs) -> TranscriptionResult:
         """Transcribe using Paraformer realtime recognition."""
-        from dashscope.audio.asr import Recognition
-        from pathlib import Path
         import subprocess
         import tempfile
+
+        from dashscope.audio.asr import Recognition
 
         path = Path(audio_path)
         if not path.exists():
             raise TranscriptionError(f"音频文件不存在：{audio_path}")
 
         # Check if input is video file - need to extract audio first
-        video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
+        video_extensions = {".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".webm"}
         file_ext = path.suffix.lower()
-        
+
         audio_file = str(path)
         temp_audio = None
-        
+
         if file_ext in video_extensions:
             # Extract audio from video to WAV format
-            temp_audio = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            temp_audio = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)  # noqa: SIM115
             audio_file = temp_audio.name
             temp_audio.close()
-            
+
             try:
-                cmd = [
-                    'ffmpeg', '-y',
-                    '-i', str(path),
-                    '-vn',
-                    '-acodec', 'pcm_s16le',
-                    '-ar', '16000',
-                    '-ac', '1',
-                    audio_file
-                ]
+                cmd = ["ffmpeg", "-y", "-i", str(path), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_file]
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
                 if temp_audio:
@@ -175,9 +149,9 @@ class AliyunClient:
             # https://help.aliyun.com/zh/model-studio/paraformer-real-time-speech-recognition-python-sdk
             recognition = Recognition(
                 model="paraformer-realtime-v2",
-                format='wav',
-                sample_rate=kwargs.get('sample_rate', 16000),
-                language_hints=language_hints or ['zh', 'en'],
+                format="wav",
+                sample_rate=kwargs.get("sample_rate", 16000),
+                language_hints=language_hints or ["zh", "en"],
                 callback=None,  # Non-streaming call doesn't need callback
             )
 
@@ -186,9 +160,7 @@ class AliyunClient:
             result = recognition.call(audio_file)
 
             if result.status_code != HTTPStatus.OK:
-                raise TranscriptionError(
-                    f"转录请求失败：{getattr(result, 'message', '未知错误')}"
-                )
+                raise TranscriptionError(f"转录请求失败：{getattr(result, 'message', '未知错误')}")
 
             # Parse the result
             return self._parse_recognition_result(result, str(path))
@@ -208,30 +180,30 @@ class AliyunClient:
         model: str = "qwen3-asr-flash-realtime",
         language_hints: Optional[List[str]] = None,
         context: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> TranscriptionResult:
         """Transcribe using Qwen3-ASR-Flash recognition via OmniRealtimeConversation.
-        
+
         Qwen3-ASR-Flash uses WebSocket-based real-time API, different from Paraformer.
         Reference: https://help.aliyun.com/zh/model-studio/qwen-speech-recognition
-        
+
         Args:
             audio_path: Path to audio/video file
             model: Qwen3-ASR-Flash model variant
             language_hints: Language hints (e.g., ['zh', 'en'])
             context: Optional context text to improve recognition of specific terms
             **kwargs: Additional parameters
-            
+
         Returns:
             TranscriptionResult
         """
-        from pathlib import Path
+        import base64
         import subprocess
         import tempfile
-        import base64
-        import time
         import threading
-        from dashscope.audio.qwen_omni import OmniRealtimeConversation, OmniRealtimeCallback, MultiModality
+        import time
+
+        from dashscope.audio.qwen_omni import MultiModality, OmniRealtimeCallback, OmniRealtimeConversation
         from dashscope.audio.qwen_omni.omni_realtime import TranscriptionParams
 
         path = Path(audio_path)
@@ -239,32 +211,21 @@ class AliyunClient:
             raise TranscriptionError(f"音频文件不存在：{audio_path}")
 
         # Convert video/audio to PCM format (required by Qwen3-ASR-Flash)
-        temp_pcm = tempfile.NamedTemporaryFile(suffix='.pcm', delete=False)
+        temp_pcm = tempfile.NamedTemporaryFile(suffix=".pcm", delete=False)  # noqa: SIM115
         pcm_file = temp_pcm.name
         temp_pcm.close()
-        
+
         try:
             # Convert to PCM 16kHz mono
-            cmd = [
-                'ffmpeg', '-y',
-                '-i', str(path),
-                '-vn',
-                '-acodec', 'pcm_s16le',
-                '-ar', '16000',
-                '-ac', '1',
-                '-f', 's16le',
-                pcm_file
-            ]
+            cmd = ["ffmpeg", "-y", "-i", str(path), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "-f", "s16le", pcm_file]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
             os.unlink(pcm_file)
             raise TranscriptionError(f"转换音频格式失败：{e.stderr}") from e
 
         # Collect transcription results
-        transcripts = []
         sentences = []
-        session_id = None
-        
+
         class Qwen3ASRCallback(OmniRealtimeCallback):
             def __init__(self):
                 self.conversation = None
@@ -272,77 +233,67 @@ class AliyunClient:
                 self.current_stash = ""
                 self.session_complete = threading.Event()
                 self.speech_active = False
-                
+
             def on_open(self):
                 pass
-                
+
             def on_close(self, code, msg):
                 self.session_complete.set()
-                
+
             def on_event(self, response):
                 try:
-                    event_type = response.get('type')
-                    
-                    if event_type == 'session.created':
+                    event_type = response.get("type")
+
+                    if event_type == "session.created":
                         pass
-                        
-                    elif event_type == 'conversation.item.input_audio_transcription.completed':
+
+                    elif event_type == "conversation.item.input_audio_transcription.completed":
                         # Final transcription result for a speech segment
-                        transcript = response.get('transcript', '')
+                        transcript = response.get("transcript", "")
                         if transcript:
                             self.final_texts.append(transcript)
-                            
-                    elif event_type == 'conversation.item.input_audio_transcription.text':
+
+                    elif event_type == "conversation.item.input_audio_transcription.text":
                         # Stash/intermediate result
-                        stash = response.get('stash', '')
+                        stash = response.get("stash", "")
                         if stash:
                             self.current_stash = stash
-                            
-                    elif event_type == 'rate_limits.updated':
+
+                    elif event_type == "rate_limits.updated":
                         # Session processing complete
                         self.session_complete.set()
-                        
+
                 except Exception as e:
                     print(f"[Callback Error] {e}")
-        
+
         callback = Qwen3ASRCallback()
-        
+
         try:
             # Create conversation
-            conversation = OmniRealtimeConversation(
-                model=model,
-                url='wss://dashscope.aliyuncs.com/api-ws/v1/realtime',
-                callback=callback
-            )
+            conversation = OmniRealtimeConversation(model=model, url="wss://dashscope.aliyuncs.com/api-ws/v1/realtime", callback=callback)
             callback.conversation = conversation
-            
+
             # Connect
             conversation.connect()
-            
+
             # Configure session
-            transcription_params = TranscriptionParams(
-                language='zh',
-                sample_rate=16000,
-                input_audio_format="pcm"
-            )
-            
+            transcription_params = TranscriptionParams(language="zh", sample_rate=16000, input_audio_format="pcm")
+
             conversation.update_session(
-                output_modalities=[MultiModality.TEXT],
-                enable_input_audio_transcription=True,
-                transcription_params=transcription_params
+                output_modalities=[MultiModality.TEXT], enable_input_audio_transcription=True, transcription_params=transcription_params
             )
-            
+
             # Send audio in chunks
             chunk_size = 3200
-            with open(pcm_file, 'rb') as f:
+            with open(pcm_file, "rb") as f:
                 while chunk := f.read(chunk_size):
-                    audio_b64 = base64.b64encode(chunk).decode('ascii')
+                    audio_b64 = base64.b64encode(chunk).decode("ascii")
                     conversation.append_audio(audio_b64)
                     time.sleep(0.01)  # Small delay to avoid flooding
-            
+
             # End session
             conversation.end_session()
-            
+
             # Wait for final results (poll with timeout)
             max_wait = 60  # 60 seconds max
             waited = 0
@@ -351,38 +302,41 @@ class AliyunClient:
                     break
                 time.sleep(0.5)
                 waited += 0.5
-            
+
             if waited >= max_wait:
                 print("[Warning] Session completion timeout")
-            
+
             conversation.close()
-            
+
             # Build result from all final transcripts
-            full_text = ' '.join(callback.final_texts) if callback.final_texts else callback.current_stash
-            
+            full_text = " ".join(callback.final_texts) if callback.final_texts else callback.current_stash
+
             if not full_text:
                 raise TranscriptionError("未识别到语音内容")
-            
+
             # Create sentences from final texts
             from video_cut_skill.models.semantic import Sentence
+
             sentences = []
             for text in callback.final_texts:
-                sentences.append(Sentence(
-                    text=text,
-                    begin_time=0,  # Qwen3-ASR-Flash doesn't provide timestamps per sentence
-                    end_time=0,
-                    words=[],
-                ))
-            
+                sentences.append(
+                    Sentence(
+                        text=text,
+                        begin_time=0,  # Qwen3-ASR-Flash doesn't provide timestamps per sentence
+                        end_time=0,
+                        words=[],
+                    )
+                )
+
             return TranscriptionResult(
                 full_text=full_text,
                 sentences=sentences,
                 duration_ms=0,  # Would need to calculate from file
-                audio_format='pcm',
+                audio_format="pcm",
                 sample_rate=16000,
                 channel_id=0,
             )
-            
+
         except Exception as e:
             if isinstance(e, TranscriptionError):
                 raise
@@ -391,14 +345,12 @@ class AliyunClient:
             # Clean up
             if os.path.exists(pcm_file):
                 os.unlink(pcm_file)
-            try:
+            with contextlib.suppress(BaseException):
                 conversation.close()
-            except:
-                pass
 
     def _parse_recognition_result(self, result, audio_path: str) -> TranscriptionResult:
         """Parse RecognitionResult into TranscriptionResult.
-        
+
         According to Python SDK docs, result.get_sentence() returns a list of sentences:
         Each sentence has:
         - text: str
@@ -406,10 +358,8 @@ class AliyunClient:
         - end_time: int
         - words: list of word timestamps
         """
-        from pathlib import Path
-
         path = Path(audio_path)
-        
+
         # Get sentences from result - it's a list!
         sentences_data = result.get_sentence()
         if not sentences_data:
@@ -425,28 +375,32 @@ class AliyunClient:
             if isinstance(sent_data, dict):
                 # Parse words if available
                 words = []
-                for word_data in sent_data.get('words', []):
+                for word_data in sent_data.get("words", []):
                     if isinstance(word_data, dict):
-                        words.append(WordTimestamp(
-                            text=word_data.get('text', ''),
-                            begin_time=word_data.get('begin_time', 0),
-                            end_time=word_data.get('end_time', 0),
-                            punctuation=word_data.get('punctuation', ''),
-                        ))
+                        words.append(
+                            WordTimestamp(
+                                text=word_data.get("text", ""),
+                                begin_time=word_data.get("begin_time", 0),
+                                end_time=word_data.get("end_time", 0),
+                                punctuation=word_data.get("punctuation", ""),
+                            )
+                        )
 
-                sentences.append(Sentence(
-                    text=sent_data.get('text', ''),
-                    begin_time=sent_data.get('begin_time', 0),
-                    end_time=sent_data.get('end_time', 0),
-                    words=words,
-                    speaker_id=sent_data.get('speaker_id'),
-                ))
+                sentences.append(
+                    Sentence(
+                        text=sent_data.get("text", ""),
+                        begin_time=sent_data.get("begin_time", 0),
+                        end_time=sent_data.get("end_time", 0),
+                        words=words,
+                        speaker_id=sent_data.get("speaker_id"),
+                    )
+                )
 
         if not sentences:
             raise TranscriptionError("未识别到有效语音内容")
 
         # Build full text
-        full_text = ' '.join(s.text for s in sentences)
+        full_text = " ".join(s.text for s in sentences)
 
         # Get duration from last sentence
         duration_ms = sentences[-1].end_time if sentences else 0
@@ -455,18 +409,13 @@ class AliyunClient:
             full_text=full_text,
             sentences=sentences,
             duration_ms=duration_ms,
-            audio_format=path.suffix.lower().lstrip('.') or 'wav',
+            audio_format=path.suffix.lower().lstrip(".") or "wav",
             sample_rate=16000,
             channel_id=0,
         )
 
     def chat_completion(
-        self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
-        **kwargs
+        self, messages: List[Dict[str, str]], model: Optional[str] = None, temperature: float = 0.3, max_tokens: Optional[int] = None, **kwargs
     ) -> str:
         """Call Qwen LLM for chat completion using OpenAI compatible API.
 
@@ -485,12 +434,12 @@ class AliyunClient:
         """
         try:
             from openai import OpenAI
-            
+
             client = OpenAI(
                 api_key=self.api_key,
                 base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             )
-            
+
             # Build request parameters
             request_params = {
                 "model": model or self.DEFAULT_LLM_MODEL,
@@ -499,19 +448,19 @@ class AliyunClient:
             }
             if max_tokens:
                 request_params["max_tokens"] = max_tokens
-            
+
             # Handle enable_thinking via extra_body
             if kwargs.get("enable_thinking"):
                 request_params["extra_body"] = {"enable_thinking": True}
-            
+
             response = client.chat.completions.create(**request_params)
-            
+
             # Extract content from response
             if response.choices and len(response.choices) > 0:
                 return response.choices[0].message.content
             else:
                 raise LLMError("LLM返回空响应")
-                
+
         except Exception as e:
             if isinstance(e, LLMError):
                 raise
@@ -536,13 +485,13 @@ class AliyunClient:
         max_chars_per_line: int = 20,
         aspect_ratio: str = "16:9",
     ) -> List[Dict[str, Any]]:
-        """使用LLM优化字幕断句。
-        
+        """使用LLM优化字幕断句。.
+
         Args:
             words: 词列表，每个词包含 text, begin_time, end_time, punctuation
             max_chars_per_line: 每行最大字数
             aspect_ratio: 视频比例，"16:9" 或 "9:16"
-            
+
         Returns:
             优化后的字幕条目列表，每个包含 text, start, end
         """
@@ -554,12 +503,12 @@ class AliyunClient:
             begin = w.get("begin_time", 0)
             end = w.get("end_time", 0)
             words_text += f"{text}{punct}[{begin},{end}]"
-        
+
         # 构建完整文本（用于LLM理解语义）
         full_text = "".join(f"{w.get('text', '')}{w.get('punctuation', '')}" for w in words)
-        
+
         is_vertical = aspect_ratio == "9:16"
-        
+
         prompt = f"""你是字幕排版专家。请根据词级时间戳，将以下文本优化断句为字幕。
 
 【视频比例】{'竖屏(9:16)' if is_vertical else '横屏(16:9)'}
@@ -605,9 +554,10 @@ class AliyunClient:
                 temperature=0.2,
                 max_tokens=2000,
             )
-            
+
             # 解析JSON响应
             import json
+
             cleaned = response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
@@ -616,33 +566,33 @@ class AliyunClient:
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
             cleaned = cleaned.strip()
-            
+
             result = json.loads(cleaned)
             subtitles = result.get("subtitles", [])
-            
+
             # 根据LLM返回的文本，匹配原始词的时间戳
             optimized = []
             word_idx = 0
-            all_words_text = "".join(w.get("text", "") + w.get("punctuation", "") for w in words)
-            
+            "".join(w.get("text", "") + w.get("punctuation", "") for w in words)
+
             for sub in subtitles:
                 text = sub.get("text", "").strip()
                 if not text:
                     continue
-                
+
                 # 清理文本用于匹配
                 clean_text = text.replace(" ", "")
-                
+
                 # 从当前位置开始匹配
                 matched_words = []
                 temp_idx = word_idx
                 temp_text = ""
-                
+
                 while temp_idx < len(words):
                     w = words[temp_idx]
                     word_str = w.get("text", "") + w.get("punctuation", "")
                     temp_text += word_str
-                    
+
                     # 检查是否已匹配足够
                     if clean_text in temp_text.replace(" ", ""):
                         matched_words.append(w)
@@ -656,63 +606,67 @@ class AliyunClient:
                     else:
                         matched_words.append(w)
                         temp_idx += 1
-                
+
                 if matched_words:
                     # 使用匹配到的词的时间戳
                     start_time = matched_words[0].get("begin_time", 0) / 1000.0
                     end_time = matched_words[-1].get("end_time", 0) / 1000.0
-                    
+
                     # 构建实际文本（只包含匹配到的词）
                     actual_text = "".join(w.get("text", "") + w.get("punctuation", "") for w in matched_words)
-                    
-                    optimized.append({
-                        "text": actual_text,
-                        "start": start_time,
-                        "end": end_time,
-                    })
-                    
+
+                    optimized.append(
+                        {
+                            "text": actual_text,
+                            "start": start_time,
+                            "end": end_time,
+                        }
+                    )
+
                     word_idx = temp_idx
-                
+
                 # 如果已用完所有词，停止
                 if word_idx >= len(words):
                     break
-            
+
             return optimized
-            
+
         except Exception as e:
             # LLM优化失败，返回原始词的简单合并
             print(f"   ⚠️ LLM字幕优化失败: {e}，使用原始分词")
             return self._fallback_subtitle_split(words, max_chars_per_line)
-    
+
     def _fallback_subtitle_split(
         self,
         words: List[Dict[str, Any]],
         max_chars: int = 20,
     ) -> List[Dict[str, Any]]:
-        """LLM失败时的回退方案：简单按字数合并。"""
+        """LLM失败时的回退方案：简单按字数合并。."""
         subtitles = []
         current_text = ""
         current_start = None
         current_end = None
-        
+
         for word in words:
             text = word.get("text", "")
             punct = word.get("punctuation", "")
             begin = word.get("begin_time", 0)
             end = word.get("end_time", 0)
-            
+
             if current_start is None:
                 current_start = begin
-            
+
             # 检查加入这个词后是否超限
             candidate = current_text + text + punct
             if len(candidate) > max_chars and current_text:
                 # 保存当前行
-                subtitles.append({
-                    "text": current_text,
-                    "start": current_start / 1000.0,
-                    "end": current_end / 1000.0,
-                })
+                subtitles.append(
+                    {
+                        "text": current_text,
+                        "start": current_start / 1000.0,
+                        "end": current_end / 1000.0,
+                    }
+                )
                 # 开始新行
                 current_text = text + punct
                 current_start = begin
@@ -720,15 +674,17 @@ class AliyunClient:
             else:
                 current_text = candidate
                 current_end = end
-        
+
         # 添加最后一行
         if current_text:
-            subtitles.append({
-                "text": current_text,
-                "start": current_start / 1000.0,
-                "end": current_end / 1000.0,
-            })
-        
+            subtitles.append(
+                {
+                    "text": current_text,
+                    "start": current_start / 1000.0,
+                    "end": current_end / 1000.0,
+                }
+            )
+
         return subtitles
 
     def parse_edit_intent(
@@ -792,12 +748,12 @@ class AliyunClient:
             cleaned = cleaned.strip()
 
             result = json.loads(cleaned)
-            
+
             # Validate filter_conditions
             if not result.get("filter_conditions"):
                 # Fallback: extract keywords from query
                 result["filter_conditions"] = self._extract_keywords_from_query(user_query)
-            
+
             return result
         except json.JSONDecodeError:
             return {
@@ -807,7 +763,7 @@ class AliyunClient:
                 "target_duration": None,
                 "style_preference": "smooth",
             }
-    
+
     def _extract_keywords_from_query(self, query: str) -> List[Dict[str, str]]:
         """Extract keywords from user query using LLM."""
         prompt = f"""从以下视频剪辑指令中提取关键词（用于内容匹配）。
@@ -816,14 +772,14 @@ class AliyunClient:
 指令：{query}
 
 关键词："""
-        
+
         try:
             response = self.chat_completion(
                 [{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=50,
             )
-            
+
             keywords = [kw.strip() for kw in response.split(",") if kw.strip()]
             return [{"type": "keyword", "value": kw} for kw in keywords[:5]]  # 最多5个
         except Exception:

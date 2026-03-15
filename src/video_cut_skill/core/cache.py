@@ -1,11 +1,9 @@
 """Multi-level cache system for video cut skill."""
 
-import hashlib
-import json
 import pickle
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional
 
 from video_cut_skill.config import get_config
 from video_cut_skill.exceptions import CacheError
@@ -86,7 +84,7 @@ class MultiLevelCache:
                 # Promote to memory
                 self._memory_cache[key] = data
                 return data
-            except Exception as e:
+            except Exception:
                 # Cache corrupted, ignore
                 pass
 

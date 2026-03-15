@@ -1,8 +1,8 @@
 """Agent interaction models."""
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Literal
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
 
 
 class AgentActionType(Enum):
@@ -79,12 +79,7 @@ class AgentResponse:
     ) -> "AgentResponse":
         """Response when video is ready for editing."""
         topics_str = ", ".join(topics[:3]) if topics else "未识别"
-        message = (
-            f"分析完成。视频共{segment_count}个片段，"
-            f"时长{duration:.1f}秒，"
-            f"识别主题：{topics_str}。\n\n"
-            f"请告诉我您希望如何剪辑？"
-        )
+        message = f"分析完成。视频共{segment_count}个片段，" f"时长{duration:.1f}秒，" f"识别主题：{topics_str}。\n\n" f"请告诉我您希望如何剪辑？"
 
         return cls(
             state="ready",

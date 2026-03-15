@@ -1,23 +1,24 @@
 """Interactive video editor for speech/talk videos."""
 
-from typing import Optional, List, Dict, Any
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from video_cut_skill.models.semantic import VideoSemantics, ContentSegment, SegmentType
-from video_cut_skill.models.session import EditSession, EditStrategy, UserFeedback, SessionState, EditIntent
-from video_cut_skill.models.agent import AgentResponse, AgentAction, AgentActionType
 from video_cut_skill.clients.aliyun_client import AliyunClient
-from video_cut_skill.core.session_manager import SessionManager
+from video_cut_skill.config import Config, get_config
 from video_cut_skill.core.cache import MultiLevelCache
 from video_cut_skill.core.cost_guardian import CostGuardian
-from video_cut_skill.config import get_config, Config
-from video_cut_skill.exceptions import VideoCutSkillError, SessionNotFoundError
+from video_cut_skill.core.session_manager import SessionManager
+from video_cut_skill.exceptions import SessionNotFoundError, VideoCutSkillError
+from video_cut_skill.models.agent import AgentAction, AgentActionType, AgentResponse
+from video_cut_skill.models.semantic import ContentSegment, SegmentType, VideoSemantics
+from video_cut_skill.models.session import EditIntent, EditStrategy, SessionState, UserFeedback
 
 
 def generate_id() -> str:
     """Generate unique ID."""
     import uuid
+
     return uuid.uuid4().hex[:12]
 
 
@@ -32,6 +33,7 @@ def get_video_duration(video_path: str) -> float:
     """
     try:
         from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
+
         wrapper = FFmpegWrapper()
         info = wrapper.get_video_info(video_path)
         return info.get("duration", 0.0)
@@ -60,15 +62,7 @@ def extract_audio(video_path: str, output_path: Optional[str] = None) -> str:
 
     try:
         # Use FFmpeg directly with PCM format for transcription compatibility
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", video_path,
-            "-vn",
-            "-acodec", "pcm_s16le",
-            "-ar", "16000",
-            "-ac", "1",
-            output_path
-        ]
+        cmd = ["ffmpeg", "-y", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", output_path]
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         return output_path
     except subprocess.CalledProcessError as e:
@@ -171,8 +165,7 @@ class InteractiveEditor:
 
         try:
             # Check if input is already an audio URL
-            if video_path.startswith(("http://", "https://")) and \
-               any(video_path.endswith(ext) for ext in ['.wav', '.mp3', '.m4a', '.mp4', '.ogg']):
+            if video_path.startswith(("http://", "https://")) and any(video_path.endswith(ext) for ext in [".wav", ".mp3", ".m4a", ".mp4", ".ogg"]):
                 # Direct transcribe from URL
                 audio_url = video_path
             else:
@@ -181,19 +174,19 @@ class InteractiveEditor:
 
             # Transcribe with configured model
             transcribe_kwargs = {
-                'language_hints': self.config.model.language_hints,
+                "language_hints": self.config.model.language_hints,
             }
-            
+
             # Add model selection if specified in config
-            if hasattr(self.config.model, 'transcribe_model') and self.config.model.transcribe_model:
-                transcribe_kwargs['model'] = self.config.model.transcribe_model
+            if hasattr(self.config.model, "transcribe_model") and self.config.model.transcribe_model:
+                transcribe_kwargs["model"] = self.config.model.transcribe_model
                 print(f"   使用ASR模型: {self.config.model.transcribe_model}")
-            
+
             # Add context hint if specified (for Qwen3-ASR-Flash)
-            if hasattr(self.config.model, 'transcribe_context') and self.config.model.transcribe_context:
-                transcribe_kwargs['context'] = self.config.model.transcribe_context
+            if hasattr(self.config.model, "transcribe_context") and self.config.model.transcribe_context:
+                transcribe_kwargs["context"] = self.config.model.transcribe_context
                 print(f"   使用上下文提示: {self.config.model.transcribe_context[:50]}...")
-            
+
             transcription = self.aliyun_client.transcribe(
                 audio_url,
                 **transcribe_kwargs,
@@ -242,12 +235,8 @@ class InteractiveEditor:
         segments = self._generate_summaries(segments)
 
         # Extract topics and keywords
-        all_topics = list(set(
-            topic for seg in segments for topic in seg.topics
-        ))
-        all_keywords = list(set(
-            kw for seg in segments for kw in seg.keywords
-        ))
+        all_topics = list({topic for seg in segments for topic in seg.topics})
+        all_keywords = list({kw for seg in segments for kw in seg.keywords})
 
         return VideoSemantics(
             video_path=video_path,
@@ -332,7 +321,7 @@ class InteractiveEditor:
                     seg.keywords = self._extract_keywords_with_llm(seg.text)
                     # Infer topics
                     seg.topics = self._infer_topics(seg.text, seg.summary)
-                except Exception as e:
+                except Exception:
                     # Fallback to simple truncation on error
                     seg.summary = seg.text[:100] + "..." if len(seg.text) > 100 else seg.text
                     seg.keywords = [w for w in seg.text.split() if len(w) > 2][:5]
@@ -352,11 +341,11 @@ class InteractiveEditor:
             temperature=0.3,
             max_tokens=100,
         )
-        
+
         # Clean up the response
         summary = response.strip()
         if len(summary) > max_chars:
-            summary = summary[:max_chars-3] + "..."
+            summary = summary[: max_chars - 3] + "..."
         return summary
 
     def _extract_keywords_with_llm(self, text: str, max_keywords: int = 5) -> List[str]:
@@ -372,7 +361,7 @@ class InteractiveEditor:
             temperature=0.3,
             max_tokens=50,
         )
-        
+
         # Parse keywords from response
         keywords = [kw.strip() for kw in response.split(",") if kw.strip()]
         return keywords[:max_keywords]
@@ -381,7 +370,7 @@ class InteractiveEditor:
         """Infer topics from text and summary."""
         # Simple topic inference based on keywords
         topics = []
-        
+
         # Common topic patterns for speech content
         topic_patterns = {
             "技术": ["技术", "开发", "代码", "软件", "系统", "算法", "AI", "人工智能"],
@@ -391,12 +380,12 @@ class InteractiveEditor:
             "生活": ["生活", "日常", "健康", "饮食", "运动", "旅行", "家庭"],
             "观点": ["观点", "看法", "认为", "觉得", "建议", "推荐"],
         }
-        
+
         content = text + " " + summary
         for topic, keywords in topic_patterns.items():
             if any(kw in content for kw in keywords):
                 topics.append(topic)
-        
+
         return topics if topics else ["未分类"]
 
     def _create_ready_response(
@@ -410,10 +399,7 @@ class InteractiveEditor:
         if session and semantics:
             semantics.video_hash = session.video_hash
 
-        segments_preview = [
-            {"id": s.segment_id, "summary": s.summary or s.text[:50] if s.text else ""}
-            for s in semantics.segments[:5]
-        ]
+        segments_preview = [{"id": s.segment_id, "summary": s.summary or s.text[:50] if s.text else ""} for s in semantics.segments[:5]]
 
         response = AgentResponse.ready_for_edit(
             segment_count=len(semantics.segments),
@@ -421,10 +407,10 @@ class InteractiveEditor:
             topics=semantics.all_topics,
             segments_preview=segments_preview,
         )
-        
+
         # Add session_id to data for subsequent operations
         response.data["session_id"] = session_id
-        
+
         return response
 
     def edit(self, session_id: str, instruction: str, llm_model: str = "qwen3.5-plus") -> AgentResponse:
@@ -480,29 +466,32 @@ class InteractiveEditor:
         intent: EditIntent,
     ) -> EditStrategy:
         """Generate editing strategy using LLM to select precise time ranges."""
-        
         # 构建句子级数据给LLM
         sentences_data = []
         if semantics.transcription and semantics.transcription.sentences:
             for i, sent in enumerate(semantics.transcription.sentences):
-                sentences_data.append({
-                    "id": f"sent_{i}",
-                    "start": sent.begin_time / 1000.0,
-                    "end": sent.end_time / 1000.0,
-                    "text": sent.text,
-                })
+                sentences_data.append(
+                    {
+                        "id": f"sent_{i}",
+                        "start": sent.begin_time / 1000.0,
+                        "end": sent.end_time / 1000.0,
+                        "text": sent.text,
+                    }
+                )
         else:
             # 回退到段落数据
             for seg in semantics.segments:
-                sentences_data.append({
-                    "id": seg.segment_id,
-                    "start": seg.start_time,
-                    "end": seg.end_time,
-                    "text": seg.text or seg.summary or "",
-                })
-        
+                sentences_data.append(
+                    {
+                        "id": seg.segment_id,
+                        "start": seg.start_time,
+                        "end": seg.end_time,
+                        "text": seg.text or seg.summary or "",
+                    }
+                )
+
         # 使用LLM选择时间范围（支持模型切换）
-        llm_model = getattr(intent, 'llm_model', 'qwen3.5-plus')
+        llm_model = getattr(intent, "llm_model", "qwen3.5-plus")
         time_ranges = self._select_time_ranges_with_llm(
             user_intent=intent.description or "保留全部内容",
             sentences=sentences_data,
@@ -510,17 +499,14 @@ class InteractiveEditor:
             max_sentences=1024,  # 默认1024句
             llm_model=llm_model,
         )
-        
+
         # 如果LLM返回空，使用所有段落
         if not time_ranges:
-            time_ranges = [
-                {"start": seg.start_time, "end": seg.end_time}
-                for seg in semantics.segments
-            ]
-        
+            time_ranges = [{"start": seg.start_time, "end": seg.end_time} for seg in semantics.segments]
+
         # 计算总时长
         total_duration = sum(r["end"] - r["start"] for r in time_ranges)
-        
+
         # 生成描述
         description = f"保留{len(time_ranges)}个片段"
         if intent.target_duration:
@@ -537,7 +523,7 @@ class InteractiveEditor:
             optimize_pauses=True,
             target_duration=intent.target_duration,
         )
-    
+
     def _select_time_ranges_with_llm(
         self,
         user_intent: str,
@@ -547,14 +533,14 @@ class InteractiveEditor:
         llm_model: str = "qwen3.5-plus",
     ) -> List[Dict[str, float]]:
         """Use LLM to select precise time ranges based on user intent.
-        
+
         Args:
             user_intent: User's natural language instruction
             sentences: List of sentences with id, start, end, text
             target_duration: Optional target duration in seconds
             max_sentences: Maximum number of sentences to include in prompt (default: 1024)
             llm_model: LLM model to use (qwen3.5-plus or qwen3.5-flash)
-            
+
         Returns:
             List of time ranges [{"start": float, "end": float}, ...]
         """
@@ -565,25 +551,22 @@ class InteractiveEditor:
             head_count = max_sentences // 3
             tail_count = max_sentences // 3
             middle_count = max_sentences - head_count - tail_count
-            
+
             head = sentences[:head_count]
             tail = sentences[-tail_count:]
             middle_start = head_count
             middle_end = total_sentences - tail_count
             step = max(1, (middle_end - middle_start) // middle_count)
             middle = sentences[middle_start:middle_end:step][:middle_count]
-            
+
             sentences_subset = head + middle + tail
             truncation_note = f"\n[注：视频共{total_sentences}句话，此处展示{max_sentences}句代表性内容]"
         else:
             sentences_subset = sentences
             truncation_note = ""
-        
-        sentences_text = "\n".join([
-            f"[{sent['id']}] {sent['start']:.1f}s - {sent['end']:.1f}s: {sent['text'][:150]}"
-            for sent in sentences_subset
-        ])
-        
+
+        sentences_text = "\n".join([f"[{sent['id']}] {sent['start']:.1f}s - {sent['end']:.1f}s: {sent['text'][:150]}" for sent in sentences_subset])
+
         duration_hint = ""
         if target_duration:
             min_duration = int(target_duration * 0.67)
@@ -593,7 +576,7 @@ class InteractiveEditor:
 1. 优先确保选中内容的完整性和语义连贯性，不要为了凑时长而截断句子
 2. 宁可多包含一点内容，也不要让最后一句话被截断
 3. 计算公式：总时长 = Σ(结束时间 - 开始时间)"""
-        
+
         prompt = f"""你是一位专业的视频剪辑助手。你的任务是根据用户的剪辑需求，从视频语音转录内容中选择并排序要保留的片段。
 
 【任务背景】
@@ -625,15 +608,15 @@ class InteractiveEditor:
     "clip_sequence": [
         {{
             "source_id": "sent_2",
-            "start": 44.8, 
-            "end": 56.3, 
+            "start": 44.8,
+            "end": 56.3,
             "reason": "选择理由",
             "position": 1
         }},
         {{
             "source_id": "sent_5",
-            "start": 65.9, 
-            "end": 70.2, 
+            "start": 65.9,
+            "end": 70.2,
             "reason": "选择理由",
             "position": 2
         }}
@@ -658,7 +641,7 @@ class InteractiveEditor:
                 enable_thinking=True,
                 model=llm_model,  # 支持模型切换
             )
-            
+
             # 保存LLM输入输出到文件
             debug_data = {
                 "timestamp": datetime.now().isoformat(),
@@ -670,13 +653,15 @@ class InteractiveEditor:
                 "llm_response": response,
             }
             import json
+
             debug_path = "/root/.openclaw/workspace/llm_debug.json"
             with open(debug_path, "w", encoding="utf-8") as f:
                 json.dump(debug_data, f, ensure_ascii=False, indent=2)
             print(f"   [调试] LLM输入输出已保存到: {debug_path}")
-            
+
             # Parse JSON response
             import json
+
             cleaned = response.strip()
             if cleaned.startswith("```json"):
                 cleaned = cleaned[7:]
@@ -687,23 +672,25 @@ class InteractiveEditor:
             cleaned = cleaned.strip()
 
             result = json.loads(cleaned)
-            
+
             # 支持新的 clip_sequence 格式
             if "clip_sequence" in result:
                 time_ranges = []
                 for clip in result["clip_sequence"]:
-                    time_ranges.append({
-                        "start": clip.get("start", 0),
-                        "end": clip.get("end", 0),
-                    })
+                    time_ranges.append(
+                        {
+                            "start": clip.get("start", 0),
+                            "end": clip.get("end", 0),
+                        }
+                    )
             else:
                 # 兼容旧的 time_ranges 格式
                 time_ranges = result.get("time_ranges", [])
-            
+
             print(f"   [LLM响应] 选择 {len(time_ranges)} 个时间范围")
             for i, r in enumerate(time_ranges, 1):
                 print(f"      片段{i}: {r.get('start', 0):.1f}s - {r.get('end', 0):.1f}s")
-            
+
             # Validate ranges
             valid_ranges = []
             for r in time_ranges:
@@ -711,13 +698,12 @@ class InteractiveEditor:
                 end = r.get("end", 0)
                 if end > start and end - start > 0.3:  # 至少0.3秒
                     valid_ranges.append({"start": start, "end": end})
-            
+
             return valid_ranges
-            
+
         except Exception as e:
             print(f"⚠️ LLM time range selection failed: {e}, using all segments")
             return []
-
 
     def confirm_edit(self, session_id: str) -> AgentResponse:
         """Confirm and execute editing.
@@ -764,7 +750,7 @@ class InteractiveEditor:
             # Prepare clip data - 优先使用time_ranges（句子级），然后回退到keep_segments（段落级）
             time_ranges = None
             keep_segments_data = []
-            
+
             if strategy.time_ranges:
                 # 使用精确时间范围（句子级剪辑）
                 time_ranges = strategy.time_ranges
@@ -773,12 +759,14 @@ class InteractiveEditor:
                 # 回退到段落级剪辑
                 for seg in session.semantics.segments:
                     if seg.segment_id in strategy.keep_segments:
-                        keep_segments_data.append({
-                            "segment_id": seg.segment_id,
-                            "start_time": seg.start_time,
-                            "end_time": seg.end_time,
-                            "text": seg.text[:100] if seg.text else "",
-                        })
+                        keep_segments_data.append(
+                            {
+                                "segment_id": seg.segment_id,
+                                "start_time": seg.start_time,
+                                "end_time": seg.end_time,
+                                "text": seg.text[:100] if seg.text else "",
+                            }
+                        )
                 print(f"   使用段落级剪辑: {len(keep_segments_data)} 个片段")
 
             # Create AutoEditor instance
@@ -794,19 +782,23 @@ class InteractiveEditor:
                     # 转换词级时间戳
                     words = []
                     for word in sent.words:
-                        words.append({
-                            "text": word.text,
-                            "begin_time": word.begin_time,
-                            "end_time": word.end_time,
-                            "punctuation": word.punctuation,
-                        })
-                    
-                    segments.append({
-                        "start": sent.begin_time / 1000.0,
-                        "end": sent.end_time / 1000.0,
-                        "text": sent.text,
-                        "words": words,  # 包含词级时间戳
-                    })
+                        words.append(
+                            {
+                                "text": word.text,
+                                "begin_time": word.begin_time,
+                                "end_time": word.end_time,
+                                "punctuation": word.punctuation,
+                            }
+                        )
+
+                    segments.append(
+                        {
+                            "start": sent.begin_time / 1000.0,
+                            "end": sent.end_time / 1000.0,
+                            "text": sent.text,
+                            "words": words,  # 包含词级时间戳
+                        }
+                    )
                 transcription_for_editor = {
                     "text": trans.full_text,
                     "segments": segments,

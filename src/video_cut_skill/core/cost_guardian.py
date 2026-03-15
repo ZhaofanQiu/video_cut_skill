@@ -1,8 +1,7 @@
 """Cost control and guardian for managing API expenses."""
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 from video_cut_skill.config import get_config
 
@@ -77,10 +76,7 @@ class CostGuardian:
         max_duration = self._config["max_video_duration_minutes"]
 
         if duration_minutes > max_duration:
-            warnings.append(
-                f"视频时长{duration_minutes:.1f}分钟超过阈值{max_duration}分钟，"
-                f"转录可能消耗较多积分。"
-            )
+            warnings.append(f"视频时长{duration_minutes:.1f}分钟超过阈值{max_duration}分钟，" f"转录可能消耗较多积分。")
             requires_confirm = True
 
         # Estimate transcription cost
@@ -89,25 +85,21 @@ class CostGuardian:
         # Add semantic analysis cost estimate
         # Assume 1 segment per 10 seconds on average
         estimated_segments = max(1, int(duration_seconds / 10))
-        summary_cost = (
-            estimated_segments / 10 * 500 * self.LLM_RATE_PER_1K_TOKENS / 1000
-        )  # Batch processing: 10 segments per call, ~500 tokens each
+        summary_cost = estimated_segments / 10 * 500 * self.LLM_RATE_PER_1K_TOKENS / 1000  # Batch processing: 10 segments per call, ~500 tokens each
 
         total_cost = transcribe_cost + summary_cost
 
         # Check cost threshold
         max_cost = self._config["max_cost_yuan"]
         if total_cost > max_cost:
-            warnings.append(
-                f"预估分析成本 ￥{total_cost:.2f} 超过阈值 ￥{max_cost:.2f}"
-            )
+            warnings.append(f"预估分析成本 ￥{total_cost:.2f} 超过阈值 ￥{max_cost:.2f}")
             requires_confirm = True
 
         # Build warning message
         message = ""
         if warnings:
             message = "\n".join(warnings)
-            message += f"\n\n预估成本明细："
+            message += "\n\n预估成本明细："
             message += f"\n- 语音转录：￥{transcribe_cost:.2f}"
             message += f"\n- 语义分析：￥{summary_cost:.2f}"
             message += f"\n- 总计：￥{total_cost:.2f}"
@@ -204,17 +196,11 @@ class CostGuardian:
         suggestions = []
 
         if video_duration > 30 * 60:  # 30 minutes
-            suggestions.append(
-                "视频较长，建议分段处理或只对关键片段进行深度分析"
-            )
+            suggestions.append("视频较长，建议分段处理或只对关键片段进行深度分析")
 
         if segment_count > 50:
-            suggestions.append(
-                "段落较多，建议使用批量处理或关键词过滤后再进行语义分析"
-            )
+            suggestions.append("段落较多，建议使用批量处理或关键词过滤后再进行语义分析")
 
-        suggestions.append(
-            "启用缓存可以避免重复分析相同视频"
-        )
+        suggestions.append("启用缓存可以避免重复分析相同视频")
 
         return suggestions

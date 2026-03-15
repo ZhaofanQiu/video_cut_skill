@@ -1,9 +1,9 @@
 """Session models for interactive video editing."""
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum, auto
+from typing import Any, Dict, List, Optional
 
 
 class SessionState(Enum):
@@ -255,18 +255,20 @@ class EditSession:
 
         # Restore strategy history
         for strat_data in data.get("strategy_history", []):
-            session.strategy_history.append(EditStrategy(
-                strategy_id=strat_data["strategy_id"],
-                description=strat_data["description"],
-                keep_segments=strat_data.get("keep_segments", []),
-                remove_segments=strat_data.get("remove_segments", []),
-                remove_fillers=strat_data.get("remove_fillers", True),
-                optimize_pauses=strat_data.get("optimize_pauses", True),
-                target_duration=strat_data.get("target_duration"),
-                aspect_ratio=strat_data.get("aspect_ratio", "16:9"),
-                add_subtitles=strat_data.get("add_subtitles", True),
-                created_at=datetime.fromisoformat(strat_data["created_at"]),
-            ))
+            session.strategy_history.append(
+                EditStrategy(
+                    strategy_id=strat_data["strategy_id"],
+                    description=strat_data["description"],
+                    keep_segments=strat_data.get("keep_segments", []),
+                    remove_segments=strat_data.get("remove_segments", []),
+                    remove_fillers=strat_data.get("remove_fillers", True),
+                    optimize_pauses=strat_data.get("optimize_pauses", True),
+                    target_duration=strat_data.get("target_duration"),
+                    aspect_ratio=strat_data.get("aspect_ratio", "16:9"),
+                    add_subtitles=strat_data.get("add_subtitles", True),
+                    created_at=datetime.fromisoformat(strat_data["created_at"]),
+                )
+            )
 
         # Restore current strategy
         current_strat = data.get("current_strategy")
