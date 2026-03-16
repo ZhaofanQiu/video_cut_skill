@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-16
+
+### Added
+- **节拍检测 (Beat Detection)**: 音乐节拍检测与智能卡点
+  - 多方法支持: `librosa` (推荐), `madmom`, `basic` (回退)
+  - BPM 自动计算与重拍检测
+  - 智能卡点剪辑方案生成
+  - 视频片段对齐到节拍
+  - 支持导出节拍标记到主流剪辑软件
+  - `BeatSyncEditor`: 节拍同步编辑工作流
+
+- **MG 模板引擎 (Template Engine)**: 可复用的动效模板系统
+  - JSON/YAML 模板定义格式
+  - 6种参数类型: `string`, `number`, `color`, `boolean`, `select`, `file`
+  - 占位符替换系统: `{{param_name}}`
+  - 4个内置模板:
+    - `youtube_intro_v1`: YouTube 频道片头
+    - `lower_third_v1`: 新闻风格字幕条
+    - `quote_card_v1`: 引用卡片
+    - `title_card_v1`: 章节标题卡片
+  - 自定义模板注册与导入/导出
+
+- **说话人识别 (Speaker Recognition)**: 语音活动检测与说话人分离
+  - `VoiceActivityDetector`: WebRTC VAD 语音检测
+  - `SpeakerDiarizer`: 说话人分离 (支持 pyannote 和基础回退)
+  - 声纹嵌入与相似度计算
+  - `SpeakerAwareEditor`: 集成到视频编辑流程
+  - 支持导出带说话人标记的字幕 (SRT/VTT)
+
+- **智能布局 (Smart Layout)**: 自动构图与多画幅适配
+  - 8种构图规则: 中心构图、三分法、黄金分割、人脸居中、主体居中、头部空间、对称构图
+  - 人脸检测: OpenCV Haar 级联分类器
+  - 主体检测: 边缘检测与轮廓分析
+  - 多画幅适配: 9:16, 16:9, 1:1, 4:5, 4:3, 21:9
+  - `SmartLayoutEditor`: 自动裁剪与批量生成
+  - 平台批量生成: 一次生成 TikTok/Instagram/YouTube 多版本
+
+### Technical
+- 新增 ~4,600 行代码，4个核心模块 + 完整单元测试
+- 所有 P1 功能均支持依赖缺失时的优雅降级
+- 完整类型注解和文档字符串
+
 ## [0.4.0] - 2026-03-16
 
 ### Added

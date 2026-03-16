@@ -9,7 +9,7 @@
 
 Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提供从原始视频到成片的自动化/半自动化处理能力。
 
-### 当前版本: v0.4.0
+### 当前版本: v0.5.0
 
 ## 核心特性
 
@@ -37,10 +37,16 @@ Video Cut Skill 是一个专为 AI Agent 设计的智能视频剪辑工具，提
 - 💾 **会话管理**: 持久化会话状态和历史
 - 🔗 **阿里云集成**: Paraformer/Qwen3-ASR-Flash 语音识别
 
-### 🚧 Phase 5: 高级功能 (规划中)
-- 🎵 节拍检测、智能卡点
-- 🎨 高级字幕动画
+### ✅ Phase 5: 高级功能 (已完成 v0.5.0)
+- 🎵 **节拍检测**: 多方法 BPM 检测 (librosa/madmom)，智能卡点剪辑
+- 🎨 **MG 模板引擎**: JSON/YAML 模板，4个内置模板，参数化渲染
+- 🗣️ **说话人识别**: VAD 语音检测，说话人分离，声纹识别
+- 📐 **智能布局**: 自动构图 (8种规则)，多画幅适配，人脸/主体检测
+
+### 🚧 Phase 6: 未来规划
+- 🎬 高级字幕动画与特效
 - 🧠 生成式 AI 集成
+- 🔊 高级音频分离与增强
 
 ## 快速开始
 
@@ -211,6 +217,159 @@ strategy = generator.generate(analysis, intent)
 print(f"Generated {len(strategy.clips)} clips")
 ```
 
+### 节拍检测与卡点剪辑 (v0.5.0+)
+
+```python
+from video_cut_skill import BeatDetector, BeatSyncEditor
+
+# 检测节拍
+detector = BeatDetector(method="librosa")
+result = detector.detect("music.mp3")
+
+print(f"BPM: {result.bpm}")
+print(f"Beats: {result.beat_count}")
+print(f"Downbeats: {result.downbeat_count}")
+
+# 生成卡点剪辑方案
+cuts = detector.generate_cuts(
+    audio_path="music.mp3",
+    target_duration=30,
+    align_to_beat=True,
+    prefer_downbeat=True
+)
+
+print(f"Generated {len(cuts.cut_points)} cut points")
+for cp in cuts.cut_points:
+    print(f"  {cp.time:.2f}s - {cp.reason}")
+
+# 节拍同步编辑器
+editor = BeatSyncEditor()
+editor.load_audio("music.mp3")
+
+# 创建卡点剪辑策略
+strategy = editor.create_beat_cut_strategy(
+    target_duration=30,
+    cut_on_downbeat=True
+)
+
+# 建议 B-roll 插入点
+b_roll_slots = editor.suggest_b_roll_insertion_points(min_interval=5.0)
+```
+
+### MG 模板引擎 (v0.5.0+)
+
+```python
+from video_cut_skill import TemplateEngine, create_youtube_intro, create_lower_third
+
+# 快速创建 YouTube 片头
+elements = create_youtube_intro(
+    channel_name="My Channel",
+    subtitle="Subscribe for more!",
+    accent_color="#FF0000"
+)
+
+# 创建 Lower Third 字幕条
+elements = create_lower_third(
+    name="John Doe",
+    title="Software Engineer",
+    color="#0066CC"
+)
+
+# 使用模板引擎
+engine = TemplateEngine()
+
+# 列出所有模板
+templates = engine.list_templates()
+for t in templates:
+    print(f"{t.template_id}: {t.name}")
+
+# 渲染模板
+elements = engine.render_template(
+    "youtube_intro_v1",
+    {
+        "channel_name": "My Channel",
+        "accent_color": "#FF5733",
+        "subtitle": "New videos every week"
+    }
+)
+
+# 导出为视频
+engine.render_to_video(
+    "youtube_intro_v1",
+    {"channel_name": "Test"},
+    "intro.mp4"
+)
+```
+
+### 说话人识别 (v0.5.0+)
+
+```python
+from video_cut_skill import SpeakerAwareEditor, SpeakerDiarizer
+
+# 分析视频中的说话人
+editor = SpeakerAwareEditor()
+result = editor.analyze("meeting.mp4")
+
+print(f"Detected {result.num_speakers} speakers")
+for speaker in result.speakers:
+    duration = editor.get_speaker_duration(speaker.speaker_id)
+    print(f"  {speaker.name}: {duration:.1f}s")
+
+# 获取说话人时间线
+timeline = editor.get_speaker_timeline()
+for item in timeline:
+    print(f"{item['start']:.1f}s - {item['speaker_name']}")
+
+# 只保留主导说话人
+clips = editor.extract_by_speaker(dominant_only=True)
+
+# 创建带说话人标记的字幕
+srt = editor.create_speaker_subtitles(subtitle_format="srt")
+with open("subtitles.srt", "w") as f:
+    f.write(srt)
+
+# 导出分析结果
+editor.export_to_json("speaker_analysis.json")
+```
+
+### 智能布局与自动构图 (v0.5.0+)
+
+```python
+from video_cut_skill import SmartLayoutEditor, AspectRatio, CompositionRule
+
+# 分析视频并建议布局
+editor = SmartLayoutEditor()
+suggestions = editor.analyze("video.mp4")
+
+for suggestion in suggestions:
+    print(f"{suggestion.aspect_ratio.value}: score {suggestion.score}")
+    print(f"  Crop: {suggestion.crop_region.bbox}")
+    print(f"  Rule: {suggestion.crop_region.rule_applied.value}")
+
+# 自动裁剪为 9:16 (抖音/Instagram)
+editor.auto_crop(
+    "input.mp4",
+    "output_9_16.mp4",
+    aspect_ratio=AspectRatio.PORTRAIT_9_16,
+    rule=CompositionRule.FACE_CENTER
+)
+
+# 使用三分法构图
+crop = editor.composition_engine.compute_crop(
+    video_width=1920,
+    video_height=1080,
+    target_ratio=AspectRatio.SQUARE_1_1,
+    rule=CompositionRule.RULE_OF_THIRDS
+)
+
+# 批量生成不同平台版本
+results = editor.batch_crop_for_platforms(
+    "input.mp4",
+    output_dir="./platforms/"
+)
+# 生成: tiktok_*.mp4, instagram_*.mp4, youtube_*.mp4, youtube_shorts_*.mp4
+```
+
 ### Motion Graphics
 
 ```python
@@ -278,7 +437,9 @@ video_cut_skill/
 | Phase 1 | ✅ 完成 | FFmpeg, Whisper, 场景检测 |
 | Phase 2 | ✅ 完成 | AI分析, 策略生成, Motion Graphics |
 | Phase 3 | ✅ 完成 | GPU加速, 缓存, 音频增强, SmartTranscriber |
-| Phase 4 | 🚧 规划 | 高级特效, 音频增强, 生成式AI |
+| Phase 4 | ✅ 完成 | InteractiveEditor, Aliyun ASR, CostGuardian |
+| Phase 5 | ✅ 完成 | 节拍检测, MG模板, 说话人识别, 智能布局 |
+| Phase 6 | 🚧 规划 | 高级特效, 生成式AI, 音频分离 |
 
 ## 文档
 
@@ -334,8 +495,8 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 查看 [CHANGELOG.md](CHANGELOG.md) 获取完整版本历史。
 
-### 最新更新 (v0.3.1)
-- ✅ **AutoEditor 统一版**: 合并基础版和增强版，支持智能/基础双模式
-- ✅ **类型安全**: mypy 零错误通过
-- ✅ **文档完善**: 100% docstrings 覆盖，新增 ADR 和配置参考
-- ✅ **安全修复**: 移除所有 shell=True 命令
+### 最新更新 (v0.5.0)
+- ✅ **节拍检测**: librosa/madmom 多方法 BPM 检测，智能卡点剪辑
+- ✅ **MG 模板引擎**: JSON/YAML 模板定义，4个内置模板，参数化渲染
+- ✅ **说话人识别**: VAD 语音活动检测，说话人分离，声纹识别
+- ✅ **智能布局**: 8种构图规则，多画幅适配 (9:16/16:9/1:1)，人脸/主体检测

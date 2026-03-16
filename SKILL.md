@@ -476,3 +476,267 @@ cost_control:
     max_cost_yuan: 3.0
     max_video_duration_minutes: 30
 ```
+
+## Phase 5 (v0.5.0) - 高级功能 API
+
+### 1. 节拍检测 (Beat Detection)
+
+```python
+from video_cut_skill import BeatDetector, detect_beats, generate_beat_cuts
+
+# 方法1: 便捷函数
+detector = BeatDetector(method="librosa")  # librosa | madmom | auto
+result = detector.detect("music.mp3")
+
+print(f"BPM: {result.bpm}")
+print(f"Beats: {result.beat_count}")
+
+# 生成卡点剪辑
+cuts = detector.generate_cuts(
+    audio_path="music.mp3",
+    target_duration=30,
+    align_to_beat=True,
+    prefer_downbeat=True
+)
+
+# 方法2: 节拍同步编辑器
+from video_cut_skill import BeatSyncEditor
+
+editor = BeatSyncEditor()
+editor.load_audio("music.mp3")
+
+strategy = editor.create_beat_cut_strategy(
+    target_duration=30,
+    cut_on_downbeat=True
+)
+
+# 建议 B-roll 插入点
+slots = editor.suggest_b_roll_insertion_points(min_interval=5.0)
+
+# 导出节拍标记
+editor.export_to_json("beat_markers.json")
+```
+
+### 2. MG 模板引擎 (Template Engine)
+
+```python
+from video_cut_skill import (
+    TemplateEngine, 
+    create_youtube_intro, 
+    create_lower_third,
+    MotionTemplate, TemplateParameter, ParameterType, TemplateType
+)
+
+# 方法1: 便捷函数
+from video_cut_skill import create_youtube_intro, create_lower_third
+
+elements = create_youtube_intro(
+    channel_name="My Channel",
+    subtitle="Subscribe!",
+    accent_color="#FF0000"
+)
+
+elements = create_lower_third(
+    name="John Doe",
+    title="Engineer",
+    color="#0066CC"
+)
+
+# 方法2: 模板引擎
+engine = TemplateEngine()
+
+# 列出所有模板
+templates = engine.list_templates()
+templates = engine.list_templates(template_type=TemplateType.INTRO)
+templates = engine.list_templates(tags=["youtube"])
+
+# 获取模板
+template = engine.get_template("youtube_intro_v1")
+
+# 渲染模板
+elements = engine.render_template(
+    "youtube_intro_v1",
+    {
+        "channel_name": "My Channel",
+        "accent_color": "#FF5733",
+        "subtitle": "Weekly uploads"
+    }
+)
+
+# 渲染为视频
+engine.render_to_video(
+    "youtube_intro_v1",
+    {"channel_name": "Test"},
+    "intro.mp4"
+)
+
+# 方法3: 自定义模板
+from video_cut_skill import MotionTemplate, TemplateParameter, ParameterType
+
+template = MotionTemplate(
+    template_id="my_intro",
+    name="My Intro",
+    template_type=TemplateType.INTRO,
+    parameters=[
+        TemplateParameter(
+            name="title",
+            param_type=ParameterType.STRING,
+            required=True
+        ),
+        TemplateParameter(
+            name="color",
+            param_type=ParameterType.COLOR,
+            default="#FFFFFF"
+        )
+    ],
+    elements=[
+        {"type": "text", "text": "{{title}}"},
+        {"type": "shape", "style": {"fill_color": "{{color}}"}}
+    ]
+)
+
+engine.register_template(template)
+engine.save_template(template, format="yaml")  # 或 "json"
+```
+
+### 3. 说话人识别 (Speaker Recognition)
+
+```python
+from video_cut_skill import (
+    SpeakerAwareEditor,
+    SpeakerDiarizer,
+    VoiceActivityDetector,
+    detect_voice_activity,
+    diarize_speakers
+)
+
+# 方法1: 便捷函数
+segments = detect_voice_activity("audio.mp3", aggressiveness=2)
+result = diarize_speakers("meeting.mp3", num_speakers=2)
+
+# 方法2: 说话人感知编辑器
+editor = SpeakerAwareEditor()
+
+# 分析视频
+result = editor.analyze("meeting.mp4")
+print(f"Speakers: {result.num_speakers}")
+
+# 获取时间线
+timeline = editor.get_speaker_timeline()
+
+# 提取特定说话人
+clips = editor.extract_by_speaker(speaker_id="SPEAKER_00")
+clips = editor.extract_by_speaker(dominant_only=True)
+
+# 创建带说话人标记的字幕
+srt = editor.create_speaker_subtitles(subtitle_format="srt")
+vtt = editor.create_speaker_subtitles(subtitle_format="vtt")
+
+# 导出分析结果
+editor.export_to_json("speaker_analysis.json")
+
+# 方法3: 低层 API
+from video_cut_skill import SpeakerDiarizer, VoiceActivityDetector
+
+vad = VoiceActivityDetector(aggressiveness=2)
+voice_segments = vad.detect("audio.mp3")
+
+diarizer = SpeakerDiarizer(method="pyannote")
+result = diarizer.diarize("meeting.mp3")
+
+# 创建说话人档案
+profile = diarizer.create_speaker_profile(
+    audio_path="sample.mp3",
+    speaker_id="SPEAKER_00",
+    name="Alice"
+)
+
+# 识别说话人
+matched = diarizer.identify_speaker(
+    audio_path="segment.mp3",
+    speaker_profiles=[profile1, profile2]
+)
+```
+
+### 4. 智能布局 (Smart Layout)
+
+```python
+from video_cut_skill import (
+    SmartLayoutEditor,
+    AspectRatio,
+    CompositionRule,
+    FaceDetector,
+    SubjectDetector,
+    auto_crop_video,
+    suggest_video_layouts
+)
+
+# 方法1: 便捷函数
+from video_cut_skill import auto_crop_video, suggest_video_layouts
+
+# 建议布局
+suggestions = suggest_video_layouts("video.mp4")
+
+# 自动裁剪
+auto_crop_video("input.mp4", "output.mp4", aspect_ratio="9:16")
+auto_crop_video("input.mp4", "output.mp4", aspect_ratio=AspectRatio.PORTRAIT_9_16)
+
+# 方法2: 智能布局编辑器
+editor = SmartLayoutEditor()
+
+# 分析视频
+suggestions = editor.analyze("video.mp4", num_sample_frames=3)
+
+for s in suggestions:
+    print(f"{s.aspect_ratio.value}: score {s.score}")
+    print(f"  Crop: {s.crop_region.bbox}")
+    print(f"  Rule: {s.crop_region.rule_applied.value}")
+
+# 自动裁剪
+editor.auto_crop(
+    "input.mp4",
+    "output.mp4",
+    aspect_ratio=AspectRatio.PORTRAIT_9_16,
+    rule=CompositionRule.FACE_CENTER
+)
+
+# 批量生成多平台版本
+results = editor.batch_crop_for_platforms(
+    "input.mp4",
+    output_dir="./platforms/"
+)
+# 生成: tiktok_*.mp4, instagram_*.mp4, youtube_*.mp4, youtube_shorts_*.mp4
+
+# 方法3: 构图引擎
+from video_cut_skill import CompositionEngine
+
+engine = CompositionEngine()
+
+# 检测人脸和主体
+face_detector = FaceDetector()
+faces = face_detector.detect("video.mp4")
+
+subject_detector = SubjectDetector()
+subjects = subject_detector.detect("video.mp4")
+
+# 计算裁剪区域
+crop = engine.compute_crop(
+    video_width=1920,
+    video_height=1080,
+    target_ratio=AspectRatio.SQUARE_1_1,
+    faces=faces,
+    subjects=subjects,
+    rule=CompositionRule.RULE_OF_THIRDS
+)
+
+print(f"Crop: x={crop.x}, y={crop.y}, w={crop.width}, h={crop.height}")
+print(f"Confidence: {crop.confidence}")
+
+# 生成多种布局建议
+suggestions = engine.suggest_layouts(
+    video_width=1920,
+    video_height=1080,
+    faces=faces,
+    subjects=subjects
+)
+```
