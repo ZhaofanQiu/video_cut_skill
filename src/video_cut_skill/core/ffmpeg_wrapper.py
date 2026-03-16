@@ -848,3 +848,54 @@ class FFmpegWrapper:
         except ffmpeg.Error as e:
             error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
             raise FFmpegError(f"Failed to stack videos vertically: {error_msg}") from e
+
+    def crop_video(
+        self,
+        input_path: Union[str, Path],
+        output_path: Union[str, Path],
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        **kwargs
+    ) -> Path:
+        """裁剪视频.
+
+        Args:
+            input_path: 输入视频路径
+            output_path: 输出视频路径
+            x: 裁剪起始X坐标
+            y: 裁剪起始Y坐标
+            width: 裁剪宽度
+            height: 裁剪高度
+            **kwargs: 额外的FFmpeg参数
+
+        Returns:
+            输出视频路径
+        """
+        input_path = str(input_path)
+        output_path = str(output_path)
+
+        try:
+            video = ffmpeg.input(input_path)
+
+            # 应用裁剪滤镜
+            video = video.filter("crop", width, height, x, y)
+
+            # 检查是否有音频
+            probe = self.probe(input_path)
+            has_audio = any(s.get("codec_type") == "audio" for s in probe.get("streams", []))
+
+            if has_audio:
+                stream = ffmpeg.output(video, output_path, vcodec="libx264", acodec="aac")
+            else:
+                stream = ffmpeg.output(video, output_path, vcodec="libx264")
+
+            ffmpeg.run(stream, cmd=self.ffmpeg_path, overwrite_output=True, quiet=True)
+
+            logger.info(f"Cropped video saved to: {output_path}")
+            return Path(output_path)
+
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode("utf-8") if e.stderr else str(e)
+            raise FFmpegError(f"Failed to crop video: {error_msg}") from e

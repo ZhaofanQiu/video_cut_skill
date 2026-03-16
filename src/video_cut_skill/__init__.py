@@ -31,6 +31,20 @@ from video_cut_skill.beat_detection import (
     detect_beats,
     generate_beat_cuts,
 )
+from video_cut_skill.smart_layout import (
+    AspectRatio,
+    CompositionEngine,
+    CompositionRule,
+    CropRegion,
+    FaceDetection,
+    FaceDetector,
+    LayoutSuggestion,
+    SmartLayoutEditor,
+    SubjectDetection,
+    SubjectDetector,
+    auto_crop_video,
+    suggest_video_layouts,
+)
 from video_cut_skill.clients import AliyunClient
 from video_cut_skill.config import Config, get_config, load_config
 from video_cut_skill.core.cache import MultiLevelCache
@@ -122,7 +136,7 @@ from video_cut_skill.utils import (
     setup_structured_logging,
 )
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = [
     # Core
     "FFmpegWrapper",
@@ -217,6 +231,19 @@ __all__ = [
     "CutPoint",
     "detect_beats",
     "generate_beat_cuts",
+    # Smart Layout (P1)
+    "SmartLayoutEditor",
+    "AspectRatio",
+    "CompositionRule",
+    "CompositionEngine",
+    "CropRegion",
+    "FaceDetection",
+    "FaceDetector",
+    "LayoutSuggestion",
+    "SubjectDetection",
+    "SubjectDetector",
+    "auto_crop_video",
+    "suggest_video_layouts",
     # P0 Features - Task Queue
     "TaskQueue",
     "VideoTask",
