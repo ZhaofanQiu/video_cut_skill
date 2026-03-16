@@ -877,9 +877,12 @@ class FFmpegWrapper:
         output_path = str(output_path)
 
         try:
-            video = ffmpeg.input(input_path)
+            # 读取输入文件
+            input_stream = ffmpeg.input(input_path)
+            video = input_stream.video
+            audio = input_stream.audio
 
-            # 应用裁剪滤镜
+            # 应用裁剪滤镜到视频
             video = video.filter("crop", width, height, x, y)
 
             # 检查是否有音频
@@ -887,7 +890,8 @@ class FFmpegWrapper:
             has_audio = any(s.get("codec_type") == "audio" for s in probe.get("streams", []))
 
             if has_audio:
-                stream = ffmpeg.output(video, output_path, vcodec="libx264", acodec="aac")
+                # 同时输出视频和音频
+                stream = ffmpeg.output(video, audio, output_path, vcodec="libx264", acodec="aac")
             else:
                 stream = ffmpeg.output(video, output_path, vcodec="libx264")
 
