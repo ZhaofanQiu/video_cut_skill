@@ -21,9 +21,24 @@ from video_cut_skill.auto_editor import (
     extract_highlights,
     process_video,
 )
+from video_cut_skill.beat_detection import (
+    BeatDetector,
+    BeatDetectionResult,
+    BeatInfo,
+    BeatMatchingResult,
+    BeatSyncEditor,
+    CutPoint,
+    detect_beats,
+    generate_beat_cuts,
+)
 from video_cut_skill.clients import AliyunClient
 from video_cut_skill.config import Config, get_config, load_config
 from video_cut_skill.core.cache import MultiLevelCache
+from video_cut_skill.core.checkpoint_manager import (
+    CheckpointManager,
+    ProcessingStage,
+    VideoCheckpoint,
+)
 from video_cut_skill.core.cost_guardian import CostCheckResult, CostGuardian
 from video_cut_skill.core.ffmpeg_wrapper import FFmpegWrapper
 from video_cut_skill.core.file_upload import (
@@ -34,8 +49,22 @@ from video_cut_skill.core.file_upload import (
 
 # Interactive Editing (New in v0.4.0)
 from video_cut_skill.core.interactive_editor import InteractiveEditor
+from video_cut_skill.core.metrics_collector import (
+    Alert,
+    AlertSeverity,
+    MetricsCollector,
+    TaskMetrics,
+)
 from video_cut_skill.core.models import Clip, Project, Timeline, Track
 from video_cut_skill.core.session_manager import SessionManager
+from video_cut_skill.core.task_queue import (
+    QueueStats,
+    TaskPriority,
+    TaskQueue,
+    TaskStatus,
+    VideoProcessor,
+    VideoTask,
+)
 from video_cut_skill.exceptions import (
     LLMError,
     SessionNotFoundError,
@@ -65,6 +94,13 @@ from video_cut_skill.motion_graphics import (
     TextAnimationConfig,
     TextElement,
     TextStyle,
+)
+
+# P0 Processing Service
+from video_cut_skill.processing_service import (
+    ProcessingResult,
+    VideoProcessingService,
+    process_video_with_queue,
 )
 
 # Utils
@@ -172,4 +208,33 @@ __all__ = [
     "NETWORK_RETRY",
     "DOWNLOAD_RETRY",
     "API_RETRY",
+    # Beat Detection (P1)
+    "BeatDetector",
+    "BeatDetectionResult",
+    "BeatInfo",
+    "BeatMatchingResult",
+    "BeatSyncEditor",
+    "CutPoint",
+    "detect_beats",
+    "generate_beat_cuts",
+    # P0 Features - Task Queue
+    "TaskQueue",
+    "VideoTask",
+    "TaskStatus",
+    "TaskPriority",
+    "QueueStats",
+    "VideoProcessor",
+    # P0 Features - Checkpoint
+    "CheckpointManager",
+    "VideoCheckpoint",
+    "ProcessingStage",
+    # P0 Features - Metrics
+    "MetricsCollector",
+    "TaskMetrics",
+    "Alert",
+    "AlertSeverity",
+    # P0 Processing Service
+    "ProcessingResult",
+    "VideoProcessingService",
+    "process_video_with_queue",
 ]

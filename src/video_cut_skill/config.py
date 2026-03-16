@@ -57,9 +57,19 @@ class CostControlConfig:
 
 
 @dataclass
+class QueueConfig:
+    """Task queue configuration."""
+    max_concurrent: int = 2
+    max_queue_size: int = 10
+    timeout_seconds: float = 3600
+    retry_count: int = 2
+    retry_delay_seconds: float = 30
+    persistence_enabled: bool = True
+
+
+@dataclass
 class SessionConfig:
     """Session management configuration."""
-
     persistence_enabled: bool = True
     cache_dir: str = "~/.video_cut_skill"
     max_sessions: int = 50
@@ -104,6 +114,7 @@ class Config:
 
     model: ModelConfig = field(default_factory=ModelConfig)
     cost_control: CostControlConfig = field(default_factory=CostControlConfig)
+    queue: QueueConfig = field(default_factory=QueueConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     editing: EditingConfig = field(default_factory=EditingConfig)
     visual: VisualConfig = field(default_factory=VisualConfig)
@@ -114,6 +125,7 @@ class Config:
         return cls(
             model=ModelConfig(**data.get("model", {})),
             cost_control=CostControlConfig(**data.get("cost_control", {})),
+            queue=QueueConfig(**data.get("queue", {})),
             session=SessionConfig(**data.get("session", {})),
             editing=EditingConfig(**data.get("editing", {})),
             visual=VisualConfig(**data.get("visual", {})),
@@ -187,6 +199,12 @@ class Config:
                 "max_video_duration_minutes": self.cost_control.max_video_duration_minutes,
                 "max_cost_yuan": self.cost_control.max_cost_yuan,
                 "cache_enabled": self.cost_control.cache_enabled,
+            },
+            "queue": {
+                "max_concurrent": self.queue.max_concurrent,
+                "max_queue_size": self.queue.max_queue_size,
+                "timeout_seconds": self.queue.timeout_seconds,
+                "retry_count": self.queue.retry_count,
             },
             "session": {
                 "persistence_enabled": self.session.persistence_enabled,

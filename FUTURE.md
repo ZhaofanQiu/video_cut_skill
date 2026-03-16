@@ -2,187 +2,294 @@
 
 Video Cut Skill 的长期路线图和功能规划。
 
-**Version**: v0.3.0+  
-**Last Updated**: 2026-03-14
+**Version**: v0.4.0+  
+**Last Updated**: 2026-03-16
 
 ---
 
 ## 执行摘要
 
-当前项目处于 **Phase 3 已完成，Phase 4 启动准备** 阶段。
+当前项目处于 **v0.4.0 已发布** 阶段。
 
-- ✅ **Phase 1-3 已完成**: 核心功能稳定，CI/CD健全
-- 🚧 **Phase 4 规划中**: 智能功能深化，预计2026年6月完成
-- 📋 **Phase 5 远期规划**: 平台生态，预计2026年12月完成
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| Phase 1-3 | ✅ 完成 | 核心功能稳定，CI/CD健全 |
+| Phase 4 (v0.4.0) | ✅ 完成 | InteractiveEditor、阿里云ASR、CostGuardian、智能字幕 |
+| **P0 任务** | 📋 **规划中** | 任务队列、并发控制、错误恢复 |
+| P1 任务 | 📋 规划中 | 节拍检测、模板系统、说话人识别 |
+| P2 任务 | 📋 远期规划 | 生成式AI、平台上传、音频分离 |
 
-**当前重点**: 提升测试覆盖率至80%，为Phase 4的智能功能奠定稳定基础。
+> **文档同步说明**: 本次更新修正了已完成功能的状态。v0.4.0 已包含：测试覆盖率81%、阿里云ASR、智能字幕(LLM断句)、InteractiveEditor 等核心功能。
+
+**当前重点**: 实现任务队列与并发控制，为生产环境部署做准备。
 
 ---
 
-## Phase 3.5 补充计划 (2026-03)
+## ✅ 已完成功能 (v0.4.0)
 
-基于测试发现的问题，补充以下优化：
+以下功能已在 v0.4.0 中实现，从 Future Plans 移至完成列表：
 
-### 任务队列与并发控制 (P1)
+| 功能 | 版本 | 说明 |
+|------|------|------|
+| **测试覆盖率 81%** | v0.3.1 | 全面的单元测试和集成测试覆盖 |
+| **阿里云 ASR 集成** | v0.4.0 | Paraformer + Qwen3-ASR-Flash 云端语音识别 |
+| **智能字幕系统** | v0.4.0 | LLM驱动的语义断句、横竖屏适配 |
+| **InteractiveEditor** | v0.4.0 | 多轮对话式视频剪辑 |
+| **CostGuardian** | v0.4.0 | 实时成本估算和用户确认机制 |
+| **SessionManager** | v0.4.0 | 会话持久化和管理 |
+| **自动降级策略** | v0.4.0 | 云端失败自动回退到本地 Whisper |
 
-**问题**: 当前无并发控制，多视频同时处理可能导致内存不足
+---
+
+## 🔴 P0 - 最高优先级 (2026 Q2)
+
+### P0.1 任务队列与并发控制
+
+**问题**: 当前无并发控制，多视频同时处理可能导致内存不足或系统崩溃
 
 **解决方案**:
 ```python
 class TaskQueue:
-    """视频处理任务队列"""
+    """视频处理任务队列 - 防止资源耗尽"""
     
     def __init__(self, max_concurrent: int = 2):
         self.max_concurrent = max_concurrent
-        self.queue = []
-        self.running = []
+        self.queue = asyncio.Queue(maxsize=10)
+        self.running = set()
+        
+    async def submit(self, task: VideoTask) -> str:
+        """提交任务，返回 task_id"""
+        
+    async def get_status(self, task_id: str) -> TaskStatus:
+        """查询任务状态"""
 ```
 
-**配置**:
+**配置设计**:
 ```yaml
+# config.yaml
 queue:
-  max_concurrent: 2        # 最大并发数
+  max_concurrent: 2        # 最大并发数 (根据GPU内存调整)
   max_queue_size: 10       # 队列最大长度
   timeout_seconds: 3600    # 任务超时时间
   retry_count: 2           # 失败重试次数
+  retry_delay_seconds: 30  # 重试间隔
 ```
 
-**时间**: 2026-03 (1-2天)
+**集成点**:
+- AutoEditor 自动使用 TaskQueue
+- InteractiveEditor 会话级任务管理
+- 提供 RESTful API 接口
+
+**时间**: 2026-04 (2周)
 
 ---
 
-### 云端转录服务 (P1)
+### P0.2 错误恢复与断点续传
 
-**问题**: 本地仅支持 tiny/base 模型，无法满足高质量转录需求
+**问题**: 长视频处理失败需要完全重新开始，浪费资源
 
-**解决方案**: 集成阿里云语音识别 API
-
-| 功能 | 阿里云服务 | 优势 |
-|------|-----------|------|
-| **语音识别** | 阿里云智能语音交互 | 中文优化好，价格低 |
-| **大模型文本** | 阿里云百炼/通义千问 | 中文场景强 |
-| **高光提取** | 通义千问 + 自研算法 | 语义理解 + 时间戳对齐 |
-| **画面理解** | 阿里云视觉智能 | 视频分析、场景检测 |
-
-**统一接口设计**:
+**解决方案**:
 ```python
-class CloudServiceClient:
-    """统一云端服务客户端"""
+class CheckpointManager:
+    """断点续传管理器"""
     
-    def __init__(self, provider: str = "aliyun", api_key: str = None):
-        self.provider = provider
-        self.api_key = api_key
-    
-    def transcribe(self, audio_path: str):
-        """语音识别 - 支持 large-v3 等高质量模型"""
-        if self.provider == "aliyun":
-            return self._aliyun_transcribe(audio_path)
+    def save_checkpoint(self, task_id: str, stage: str, data: dict):
+        """保存处理进度"""
+        
+    def resume_from_checkpoint(self, task_id: str) -> Optional[Checkpoint]:
+        """从断点恢复"""
 ```
 
-**成本估算** (阿里云):
-| 功能 | 单价 | 7分钟视频成本 |
-|------|------|--------------|
-| 语音识别 | ￥0.006/秒 | ￥2.5 |
-| 大模型调用 | ￥0.006/千token | ￥0.1 |
-| 画面分析 | ￥0.1/分钟 | ￥0.7 |
-| **总计** | - | **￥3.3/视频** |
+**检查点阶段**:
+1. `transcription_complete` - 转录完成
+2. `analysis_complete` - 分析完成
+3. `clips_extracted` - 片段提取完成
+4. `rendering` - 渲染中 (帧级别检查点)
 
-**时间**: 2026-03~04 (2-3周)
+**时间**: 2026-04 (1-2周)
 
 ---
 
-## Phase 4: 智能功能深化 (v0.4.0)
+### P0.3 性能监控与可观测性
 
-**时间**: 2026-03 ~ 2026-06  
-**目标**: 从"自动化"升级到"智能化"，实现基于内容理解的智能决策
+**功能**:
+- 处理时长统计 (P95/P99)
+- 成功率/失败率监控
+- 资源使用监控 (CPU/GPU/内存)
+- 成本使用统计
 
-### 4.1 智能字幕系统升级 (P0)
+**API 设计**:
+```python
+from video_cut_skill import MetricsCollector
 
-#### 功能清单
+metrics = MetricsCollector()
 
-| 功能 | 优先级 | 技术方案 | 预期效果 |
-|------|--------|----------|----------|
-| 智能断句优化 | P0 | NLP语义分析 | 更自然的字幕分段 |
-| 多语言字幕生成 | P0 | Whisper翻译 | 自动生成中英双语 |
-| 说话人识别与标注 | P1 | 声纹识别 | 区分不同说话人 |
-| 打字机动画效果 | P1 | 动画系统扩展 | 逐字出现效果 |
-| 字幕位置智能调整 | P1 | 视觉分析 | 避开人脸和重要区域 |
+# 自动收集
+with metrics.track_operation("video_processing"):
+    result = editor.process_video(...)
 
-#### 应用场景
-- 播客/访谈视频：自动标注说话人
-- 教育视频：双语字幕支持
-- 会议记录：智能分段和摘要
+# 查询指标
+stats = metrics.get_stats(time_range="24h")
+```
 
----
-
-### 4.2 节拍检测与智能卡点 (P1)
-
-#### 功能清单
-
-| 功能 | 优先级 | 技术方案 |
-|------|--------|----------|
-| 音乐节拍检测 | P0 | librosa/madmom |
-| 自动对齐剪辑点 | P1 | 节拍时间戳映射 |
-| B-roll自动插入 | P2 | 内容匹配算法 |
-| 节奏变速 | P2 | 音频时间拉伸 |
-
-#### 应用场景
-- 短视频卡点：自动匹配音乐节拍
-- MV制作：节奏驱动的剪辑
-- 广告创意：节奏感强的快剪
+**时间**: 2026-04 (1周)
 
 ---
 
-### 4.3 Motion Graphics 模板系统 (P1)
+## 🟠 P1 - 高优先级 (2026 Q2-Q3)
 
-#### 功能清单
+### P1.1 节拍检测与智能卡点
 
-| 功能 | 优先级 | 描述 |
-|------|--------|------|
-| JSON/YAML模板定义 | P0 | 模板结构化配置 |
-| 片头/片尾模板 | P1 | 品牌包装模板 |
-| Lower Thirds字幕条 | P1 | 新闻/访谈风格 |
-| 数据可视化动画 | P2 | 图表动画生成 |
-| 模板市场 | P2 | 社区分享平台 |
+**应用场景**: 短视频卡点、MV制作、节奏感强的广告快剪
 
-#### 参考设计
+**技术方案**:
+```python
+from video_cut_skill import BeatDetector
+
+detector = BeatDetector(
+    method="librosa",  # 或 "madmom"
+    bpm_range=(60, 180)
+)
+
+# 检测节拍
+beats = detector.detect("audio.mp3")
+
+# 生成卡点剪辑方案
+cuts = detector.generate_cuts(
+    target_duration=30,
+    align_to_beat=True  # 剪辑点对齐节拍
+)
+```
+
+**功能清单**:
+- [ ] 音乐节拍检测 (BPM + 节拍时间戳)
+- [ ] 自动对齐剪辑点
+- [ ] B-roll 自动插入 (在节拍点插入素材)
+- [ ] 节奏变速 (音频时间拉伸)
+
+**时间**: 2026-05 (2-3周)
+
+---
+
+### P1.2 Motion Graphics 模板系统
+
+**目标**: 将常用动效模板化，降低使用门槛
+
+**模板定义** (YAML):
 ```yaml
-# 示例模板配置
+# templates/youtube_intro.yaml
 template: youtube_intro
 version: "1.0"
+description: "YouTube 频道标准片头"
+
+parameters:
+  channel_name:
+    type: string
+    required: true
+  accent_color:
+    type: color
+    default: "#FF6B6B"
+
 elements:
   - type: text
     text: "{{channel_name}}"
-    animation: slide_up
-    duration: 2.0
-  - type: shape
-    shape: rectangle
-    animation: fade_in
-background:
-  type: gradient
-  colors: ["#FF6B6B", "#4ECDC4"]
+    position: [960, 540]
+    animation: 
+      entry: slide_up
+      duration: 0.5
+      easing: ease_out_back
+    style:
+      font_size: 64
+      font_color: "{{accent_color}}"
 ```
+
+**模板类型规划**:
+| 类型 | 数量目标 | 示例 |
+|------|----------|------|
+| 片头/片尾 | 5+ | 品牌展示、订阅引导 |
+| Lower Thirds | 5+ | 人名条、信息提示 |
+| 章节分隔 | 3+ | 转场动画 |
+| 数据可视化 | 3+ | 图表动画 |
+
+**时间**: 2026-05~06 (3-4周)
 
 ---
 
-### 4.4 生成式AI集成 (P2)
+### P1.3 说话人识别与标注
 
-#### 功能清单
+**应用场景**: 播客/访谈视频自动标注说话人、会议记录
 
-| 功能 | 优先级 | AI能力 | 应用场景 |
-|------|--------|--------|----------|
-| 自动生成标题 | P1 | GPT-4o/Claude | 视频发布 |
-| 自动摘要/描述 | P1 | 长文本生成 | 视频简介 |
-| 标签推荐 | P1 | 关键词提取 | SEO优化 |
-| 缩略图生成建议 | P2 | 视觉分析 | 封面选择 |
-| A/B测试变体 | P2 | 多版本生成 | 内容优化 |
+**技术方案**: pyannote.audio (开源声纹识别)
 
-#### 示例API
+```python
+from video_cut_skill import SpeakerDiarization
+
+diarization = SpeakerDiarization()
+
+# 识别说话人
+speakers = diarization.process("audio.mp4")
+
+# 生成带说话人标注的字幕
+subtitles = diarization.generate_subtitles(
+    assign_names={"SPEAKER_01": "主持人", "SPEAKER_02": "嘉宾"}
+)
+```
+
+**时间**: 2026-06 (2周)
+
+---
+
+### P1.4 智能布局
+
+**功能清单**:
+- [ ] **人脸智能居中追踪**: OpenCV人脸检测 + 追踪算法
+- [ ] **安全区域检测**: 识别平台UI区域 (抖音的点赞区、B站的弹幕区)
+- [ ] **字幕位置智能调整**: 避开人脸和重要视觉区域
+- [ ] **多画面智能布局**: 画中画自动排列
+
+**API 设计**:
+```python
+from video_cut_skill import SmartLayout
+
+layout = SmartLayout(
+    aspect_ratio="9:16",
+    platform="douyin"  # 影响安全区域计算
+)
+
+# 分析视频并推荐布局
+recommendation = layout.analyze("input.mp4")
+
+# 应用布局
+output = layout.apply("input.mp4", recommendation)
+```
+
+**时间**: 2026-06 (2-3周)
+
+---
+
+## 🟡 P2 - 中等优先级 (2026 Q3)
+
+### P2.1 生成式 AI 集成
+
+**功能清单**:
+| 功能 | AI能力 | 应用场景 |
+|------|--------|----------|
+| 自动生成标题 | GPT-4o / 通义千问 | 视频发布 |
+| 自动摘要/描述 | 长文本生成 | 视频简介 |
+| 标签推荐 | 关键词提取 | SEO优化 |
+| 缩略图生成建议 | 视觉分析 | 封面选择 |
+
+**API 设计**:
 ```python
 from video_cut_skill.ai import ContentGenerator
 
-generator = ContentGenerator()
-metadata = generator.generate_metadata(video_path, platform="youtube")
+generator = ContentGenerator(provider="aliyun")
+
+metadata = generator.generate_metadata(
+    video_path="output.mp4",
+    platform="youtube",
+    language="zh"
+)
 # {
 #   "title": "10个Python技巧让你成为更好的程序员",
 #   "description": "在本视频中，我们将介绍...",
@@ -191,40 +298,33 @@ metadata = generator.generate_metadata(video_path, platform="youtube")
 # }
 ```
 
----
-
-### 4.5 智能布局 (P2)
-
-#### 功能清单
-
-| 功能 | 优先级 | 技术方案 |
-|------|--------|----------|
-| 人脸智能居中追踪 | P1 | OpenCV人脸检测 + 追踪 |
-| 安全区域检测 | P1 | 平台UI识别 |
-| 多画面智能布局 | P2 | 画中画自动排列 |
-| 智能裁剪 | P2 | 主体追踪裁剪 |
+**时间**: 2026-07 (2-3周)
 
 ---
 
-## Phase 5: 平台与生态 (v0.5.0)
+### P2.2 音频分离
 
-**时间**: 2026-06 ~ 2026-12  
-**目标**: 从工具升级为平台，支持完整工作流
+**功能**:
+- 人声/背景音分离 (Demucs/Spleeter)
+- 噪音消除
+- BGM 智能匹配
 
-### 5.1 平台直接上传 (P2)
+**时间**: 2026-07 (2周)
 
-#### 支持平台
+---
 
-| 平台 | 优先级 | API状态 | 功能 |
-|------|--------|---------|------|
-| YouTube | P0 | ✅ 成熟 | 上传、标题、标签、隐私设置 |
-| TikTok/抖音 | P1 | ⚠️ 有限制 | 上传、描述 |
-| Bilibili | P1 | ✅ 成熟 | 上传、分区、标签 |
-| 小红书 | P2 | ⚠️ 无官方API | 模拟上传 |
+### P2.3 平台直接上传
 
-#### 示例API
+**支持平台**:
+| 平台 | 优先级 | API状态 |
+|------|--------|---------|
+| YouTube | P0 | ✅ 成熟 |
+| Bilibili | P1 | ✅ 成熟 |
+| TikTok/抖音 | P1 | ⚠️ 有限制 |
+
+**API 设计**:
 ```python
-from video_cut_skill.platforms import YouTubeUploader
+from video_cut_skill.platforms import YouTubeUploader, BilibiliUploader
 
 uploader = YouTubeUploader(credentials="oauth.json")
 uploader.upload(
@@ -236,158 +336,112 @@ uploader.upload(
 )
 ```
 
----
-
-### 5.2 多轨道编辑引擎 (P3)
-
-#### 功能清单
-
-| 功能 | 优先级 | 描述 |
-|------|--------|------|
-| 时间线数据模型重构 | P0 | 支持多轨道 |
-| 视频层叠/画中画 | P1 | 多层视频合成 |
-| 复杂转场效果 | P1 | 光流、遮罩转场 |
-| 项目文件保存/加载 | P2 | JSON项目格式 |
-| 关键帧动画 | P2 | 属性动画系统 |
+**时间**: 2026-07~08 (3-4周)
 
 ---
 
-### 5.3 色彩校正与LUT (P3)
+### P2.4 色彩校正与 LUT
 
-#### 功能清单
+**功能**:
+- LUT 滤镜应用 (FFmpeg lut3d)
+- 自动白平衡
+- 曝光调整
+- 电影级调色预设库
 
-| 功能 | 优先级 | 技术方案 |
-|------|--------|----------|
-| LUT滤镜应用 | P1 | FFmpeg lut3d |
-| 自动白平衡 | P1 | 色彩分析算法 |
-| 曝光调整 | P2 | 直方图均衡 |
-| 电影级调色预设 | P2 | 专业LUT预设库 |
-
----
-
-### 5.4 实时预览系统 (P3)
-
-#### 功能清单
-
-| 功能 | 优先级 | 技术方案 |
-|------|--------|----------|
-| 低分辨率代理生成 | P1 | 快速预览 |
-| WebSocket实时推送 | P2 | 流式传输 |
-| 浏览器预览界面 | P2 | WebCodecs API |
-| 移动端预览App | P3 | React Native |
+**时间**: 2026-08 (2周)
 
 ---
 
-### 5.5 插件系统 (P3)
+### P2.5 高级转场效果
 
-#### 架构设计
+**功能**:
+- 滑动/缩放/旋转转场
+- 遮罩转场
+- 光流转场 (optical flow)
+- AI 智能转场时机推荐
 
-```python
-# 插件注册
-from video_cut_skill.plugins import register_plugin
-
-@register_plugin(name="custom_effect", version="1.0")
-class CustomEffect:
-    """自定义效果插件."""
-    
-    def process(self, frame, params):
-        # 处理帧
-        return processed_frame
-    
-    def get_params_schema(self):
-        # 参数定义
-        return {
-            "intensity": {"type": "float", "default": 0.5}
-        }
-```
+**时间**: 2026-08~09 (3周)
 
 ---
 
-## 优先级矩阵
+## 📊 优先级矩阵
 
-### Phase 4 优先级
+### 综合评估
 
 | 功能 | 影响力 | 难度 | ROI | 优先级 |
 |------|--------|------|-----|--------|
-| 智能字幕升级 | 高 | 中 | 高 | **P0** |
-| 测试覆盖率80% | 高 | 中 | 高 | **P0** |
+| 任务队列 | 高 | 中 | 高 | **P0** |
+| 断点续传 | 高 | 中 | 高 | **P0** |
+| 性能监控 | 中 | 低 | 高 | **P0** |
 | 节拍检测 | 高 | 高 | 中 | **P1** |
-| Motion Graphics模板 | 中 | 高 | 中 | **P1** |
-| 生成式AI集成 | 中 | 中 | 中 | **P2** |
-| 智能布局 | 中 | 中 | 中 | **P2** |
+| 模板系统 | 中 | 高 | 中 | **P1** |
+| 说话人识别 | 中 | 中 | 中 | **P1** |
+| 智能布局 | 中 | 中 | 中 | **P1** |
+| 生成式AI | 中 | 中 | 中 | **P2** |
+| 音频分离 | 中 | 高 | 中 | **P2** |
+| 平台上传 | 中 | 中 | 中 | **P2** |
 | 色彩校正 | 中 | 高 | 低 | **P2** |
-
-### Phase 5 优先级
-
-| 功能 | 影响力 | 难度 | 优先级 |
-|------|--------|------|--------|
-| 平台直接上传 | 中 | 中 | **P2** |
-| 多轨道编辑 | 中 | 高 | **P3** |
-| 实时预览 | 低 | 高 | **P3** |
-| 插件系统 | 低 | 中 | **P3** |
 
 ---
 
-## 技术债务清理计划
+## 🔧 技术债务清理计划
 
 ### 当前债务
 
-| 债务项 | 影响 | 清理计划 |
-|--------|------|----------|
-| 测试覆盖率56% | 中 | v0.3.x期间提升至80% |
-| 类型注解不完善 | 低 | 逐步补充 |
-| 文档不完整 | 中 | 随功能更新同步补充 |
-| 硬编码参数 | 低 | 配置化改造 |
+| 债务项 | 影响 | 状态 | 清理计划 |
+|--------|------|------|----------|
+| 无并发控制 | 高 | 🚧 | P0: TaskQueue |
+| 无断点续传 | 中 | 📋 | P0: CheckpointManager |
+| 无性能监控 | 中 | 📋 | P0: MetricsCollector |
+| 硬编码参数 | 低 | 📋 | P1: 配置化改造 |
 
 ### 清理时间表
 
 ```
-v0.3.1 (2026-03): 测试覆盖率 56% → 70%
-v0.3.2 (2026-04): 测试覆盖率 70% → 80%
-v0.3.3 (2026-05): 类型注解完善、文档补充
+2026-04 (v0.4.2): TaskQueue, CheckpointManager, MetricsCollector
+2026-05 (v0.5.0): 模板系统, 节拍检测
+2026-06 (v0.5.1): 说话人识别, 智能布局
 ```
 
 ---
 
-## 资源需求与风险
-
-### 开发资源
-
-| 资源 | 需求 | 优先级 |
-|------|------|--------|
-| GPU服务器 | CUDA功能测试、AI模型推理 | 高 |
-| 测试视频库 | 多场景测试覆盖 | 中 |
-| 设计师 | LUT预设、模板设计 | 低 |
-
-### 技术风险
+## 🚨 风险与缓解
 
 | 风险 | 概率 | 影响 | 缓解措施 |
 |------|------|------|----------|
-| 平台API限制 | 中 | 中 | 多平台备份方案 |
-| AI模型成本 | 中 | 低 | 本地模型 + API降级 |
-| 性能瓶颈 | 低 | 高 | 早期性能测试 |
+| 任务队列实现复杂 | 中 | 中 | 参考 Celery/RQ 设计，分阶段实现 |
+| 节拍检测精度不足 | 中 | 中 | 多算法对比 (librosa/madmom) |
+| 平台API限制 | 低 | 中 | 多平台备份方案 |
+| AI模型成本上涨 | 中 | 低 | 本地模型 + API降级策略 |
 
 ---
 
-## 成功指标
+## 📈 成功指标
 
-### v0.4.0 成功标准
+### v0.4.2 (P0完成)
+- [ ] TaskQueue 并发控制上线
+- [ ] 断点续传功能可用
+- [ ] 性能监控 dashboard 可用
+- [ ] 生产环境部署无内存问题
 
-- [ ] 测试覆盖率 ≥ 80%
-- [ ] 智能字幕功能可用
+### v0.5.0 (P1核心完成)
 - [ ] 节拍检测功能可用
 - [ ] 至少5个Motion Graphics模板
+- [ ] 模板系统架构稳定
 
-### v0.5.0 成功标准
+### v0.5.1 (P1补充完成)
+- [ ] 说话人识别功能可用
+- [ ] 智能布局功能可用
+- [ ] 人脸识别准确率 > 90%
 
-- [ ] 支持3+平台直接上传
-- [ ] 多轨道编辑功能可用
-- [ ] 实时预览功能可用
-- [ ] 社区模板 ≥ 20个
+### v0.6.0 (P2完成)
+- [ ] 生成式AI标题/描述生成
+- [ ] 支持2+平台直接上传
+- [ ] 音频分离功能可用
 
 ---
 
-## 反馈与贡献
+## 🤝 参与贡献
 
 欢迎通过以下渠道参与项目：
 
